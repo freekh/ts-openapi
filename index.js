@@ -90,9 +90,9 @@ function getType (schema) {
       return getType(schema.items) + '[]'
     }
   } else if (schema.type === 'string' && schema.format === 'date-time') {
-    return 'Date'
+    return 'DateTime'
   } else if (schema.type === 'string' && schema.format === 'date') {
-    return 'Date'
+    return 'Day'
   } else if (schema.type === 'string') {
     return 'string'
   } else if (schema.type === 'number') {
@@ -275,13 +275,19 @@ ${getParams}
   }
 }`
 
+const dateTypes = `
+type Day = Date & { readonly __tag: unique symbol }
+type DateTime = Date & { readonly __tag: unique symbol }
+`
+
 const imports = [`import axios, { AxiosResponse } from 'axios'`].join('\n')
 const exportCode = `export default api`
 const sep = '\n\n//---\n\n'
 const code = imports + sep +
+  dateTypes + sep +
   typesCode + sep + 
-  pathsSumTypeCode + sep +
   pathTypesCode + sep +
+  pathsSumTypeCode + sep +
   baseTypeCode + sep +
   apiCode + sep + 
   exportCode

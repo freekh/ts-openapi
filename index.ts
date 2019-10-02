@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml'
 import * as fs from 'fs'
 import { Expression, ArrowFunction, StructureKind, Project, OptionalKind, TypeAliasDeclarationStructure } from 'ts-morph'
-import { OpenAPI, Parameter, Ref, Schema, PathItem } from './openapi'
+import { OpenAPI, Parameter, Ref, Schema, PathItem, Operation } from './openapi'
 import { TypeAliasDeclaration, FunctionBody } from 'typescript'
 import jsonref from './jsonref'
 
@@ -26,6 +26,9 @@ function schema2TypeAlias(schema: Schema): OptionalKind<TypeAliasDeclarationStru
 // return 1
 // }
 
+type OperationType = Operation & {
+  type: 'delete' | 'get' | 'head' | 'options' | 'patch' | 'post' | 'put' | 'trace',
+}
 
 async function main(doc: string): Promise<void> {
   const api = yaml.safeLoad(doc) as OpenAPI
@@ -35,10 +38,25 @@ async function main(doc: string): Promise<void> {
   const project = new Project({})
   const apiFile = project.createSourceFile('api.ts')
 
-  Object.keys(api.paths).reduce(({ cache, endpoints, apiBase, types, paths }, path) => {
+  Object.keys(api.paths).reduce(({ cache, endpoints, conditionals, operationImpls, types, paths }, path) => {
     const pathItem = api.paths[path]
-    return { cache, endpoints, apiBase, types, paths: paths.concat(path) }
-  }, { cache: {}, endpoints: [], conditionals: {}, types: [], paths: [] })
+    let operations: (OperationType & { defined: boolean })[] = [
+      { ...pathItem.delete, defined: !!pathItem.delete, type: 'delete' } as OperationType & { defined: boolean },
+      { ...pathItem.get, defined: !!pathItem.get, type: 'get' } as OperationType & { defined: boolean },
+      { ...pathItem.head, defined: !!pathItem.head, type: 'head' } as OperationType & { defined: boolean },
+      { ...pathItem.options, defined: !!pathItem.options, type: 'options' } as OperationType & { defined: boolean },
+      { ...pathItem.patch, defined: !!pathItem.patch, type: 'patch' } as OperationType & { defined: boolean },
+      { ...pathItem.post, defined: !!pathItem.post, type: 'post' } as OperationType & { defined: boolean },
+      { ...pathItem.put, defined: !!pathItem.put, type: 'put' } as OperationType & { defined: boolean },
+      { ...pathItem.trace, defined: !!pathItem.trace, type: 'trace' } as OperationType & { defined: boolean },
+    ].filter(op => op.defined)
+    const { endpoint, conditional, types } = operations.reduce(({ endpoint, conditional, types }, op) => {
+      return {
+        endpoint, conditional, types
+      }
+    }, { endpoint, conditional, types })
+    return { cache, endpoints: endpoints.concat(endpoint), conditionals.concat(), types, paths: paths.concat(path) }
+  }, { cache: {}, endpoints: [], conditionals: {}, operationImpls, types: [], paths: [] })
 }
 
 main(fs.readFileSync('./petstore.yml', 'utf8'))

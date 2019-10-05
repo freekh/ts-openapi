@@ -1,21 +1,22 @@
 import * as yaml from 'js-yaml'
 import * as fs from 'fs'
-import { Expression, ArrowFunction, StructureKind, Project, OptionalKind, TypeAliasDeclarationStructure } from 'ts-morph'
-import { OpenAPI, Parameter, Ref, Schema, PathItem, Operation } from './openapi'
-import { TypeAliasDeclaration, FunctionBody } from 'typescript'
-import jsonref from './jsonref'
+
+import { OpenAPI, Operation } from './openapi/v300'
+import { Ast } from './ast'
+import { resolve } from './openapi/ref'
+import { convertRequestBody } from './openapi/v300/converters'
 
 // function resolve(api: OpenAPI, resolved: { [$ref: string]: Schema }, schema: Schema): { [$ref: string]: Schema }  {
 //   jsref(api, )
 // }
 
-function schema2TypeAlias(schema: Schema): OptionalKind<TypeAliasDeclarationStructure> {
-  return {
-    name: '',
-    type: '',
-    docs: ['hello'],
-  }
-}
+// function schema2TypeAlias(schema: Schema): OptionalKind<TypeAliasDeclarationStructure> {
+//   return {
+//     name: '',
+//     type: '',
+//     docs: ['hello'],
+//   }
+// }
 
 // function param2Function(parameters: Parameter[], body: FunctionBody): ArrowFunction {
 
@@ -27,20 +28,19 @@ function schema2TypeAlias(schema: Schema): OptionalKind<TypeAliasDeclarationStru
 // }
 
 type OperationType = Operation & {
-  type: 'delete' | 'get' | 'head' | 'options' | 'patch' | 'post' | 'put' | 'trace',
+  type: 'delete' | 'get' | 'head' | 'options' | 'patch' | 'post' | 'put' | 'trace';
 }
 
-async function main(doc: string): Promise<void> {
+function main(doc: string): void {  
   const api = yaml.safeLoad(doc) as OpenAPI
-  // console.log(JSON.stringify(await jsonref(api), null, 2))
-  const schemas = api.components.schemas
+  // const schemas = api.components.schemas
 
-  const project = new Project({})
-  const apiFile = project.createSourceFile('api.ts')
+  // const project = new Project({})
+  // const apiFile = project.createSourceFile('api.ts')
 
-  Object.keys(api.paths).reduce(({ cache, endpoints, conditionals, operationImpls, types, paths }, path) => {
+  const ast: Ast = Object.keys(api.paths).reduce(({ endpoints, conditionals, types, paths}, path) => {
     const pathItem = api.paths[path]
-    let operations: (OperationType & { defined: boolean })[] = [
+    const operations: (OperationType & { defined: boolean })[] = [
       { ...pathItem.delete, defined: !!pathItem.delete, type: 'delete' } as OperationType & { defined: boolean },
       { ...pathItem.get, defined: !!pathItem.get, type: 'get' } as OperationType & { defined: boolean },
       { ...pathItem.head, defined: !!pathItem.head, type: 'head' } as OperationType & { defined: boolean },
@@ -50,13 +50,15 @@ async function main(doc: string): Promise<void> {
       { ...pathItem.put, defined: !!pathItem.put, type: 'put' } as OperationType & { defined: boolean },
       { ...pathItem.trace, defined: !!pathItem.trace, type: 'trace' } as OperationType & { defined: boolean },
     ].filter(op => op.defined)
-    const { endpoint, conditional, types } = operations.reduce(({ endpoint, conditional, types }, op) => {
-      return {
-        endpoint, conditional, types
-      }
-    }, { endpoint, conditional, types })
-    return { cache, endpoints: endpoints.concat(endpoint), conditionals.concat(), types, paths: paths.concat(path) }
-  }, { cache: {}, endpoints: [], conditionals: {}, operationImpls, types: [], paths: [] })
+
+    operations.reduce((prev, op) => {
+      convertRequestBody(resolve(api, op.requestBody))
+      
+      return { }
+    }, {})
+
+    return { endpoints, conditionals, types, paths }
+  }, { endpoints: [], conditionals: [], types: [], paths: [] })
 }
 
-main(fs.readFileSync('./petstore.yml', 'utf8'))
+main(fs.readFileSync('./garbage/petstore.yml', 'utf8'))

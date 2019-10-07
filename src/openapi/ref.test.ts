@@ -1,5 +1,5 @@
-import { resolve } from "./ref"
-import { Components, Schema } from "./v300"
+import { Schema } from './v300'
+import { RefStore } from './ref'
 
 export const userComponents = {
   components: {
@@ -16,10 +16,10 @@ export const userComponents = {
         },
       },
     }
-  } as Components
+  }
 }
 
-test('basic resolve', () => {
-  expect(resolve(userComponents)).toBe(undefined)
-  expect(resolve<Schema>(userComponents, { $ref: '#/components/schemas/User' })).toBe(userComponents.components.schemas.User)
+test('basic resolve', async () => {
+  const root = new RefStore(userComponents)
+  expect(await root.resolve<Schema>({ $ref: '#/components/schemas/User' })).toBe(userComponents.components.schemas.User)
 })

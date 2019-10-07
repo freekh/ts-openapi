@@ -3,8 +3,11 @@ import * as fs from 'fs'
 
 import { OpenAPI, Operation } from './openapi/v300'
 import { Ast } from './ast'
-import { resolve } from './openapi/ref'
-import { convertRequestBody } from './openapi/v300/converters'
+import { OperationType } from './openapi/v300/OperationType'
+import { convertOperation } from './openapi/v300/converters/OperationType'
+import { RefStore, isRef } from './openapi/ref'
+import { genTypes } from './gen'
+import * as ts from 'typescript';
 
 // function resolve(api: OpenAPI, resolved: { [$ref: string]: Schema }, schema: Schema): { [$ref: string]: Schema }  {
 //   jsref(api, )
@@ -27,16 +30,46 @@ import { convertRequestBody } from './openapi/v300/converters'
 // return 1
 // }
 
-type OperationType = Operation & {
-  type: 'delete' | 'get' | 'head' | 'options' | 'patch' | 'post' | 'put' | 'trace';
-}
-
-function main(doc: string): void {  
+async function main(doc: string): Promise<void> {  
   const api = yaml.safeLoad(doc) as OpenAPI
   // const schemas = api.components.schemas
 
-  // const project = new Project({})
-  // const apiFile = project.createSourceFile('api.ts')
+  const printer = ts.createPrinter({
+    newLine: ts.NewLineKind.LineFeed,
+    removeComments: false,
+    omitTrailingSemicolon: true
+  });
+
+  // Create a source file
+  const sourceFile = ts.createSourceFile(
+      'someFileName.ts',
+      '',
+      ts.ScriptTarget.ESNext,
+      /*setParentNodes*/ false,
+      ts.ScriptKind.TS
+  );
+
+  // apiFile.getStatements().map(a => console.log((a.compilerNode as any).type.members))
+  const refStore = new RefStore(api)
+  if (api.components && api.components.schemas) {
+    const c = api.components
+
+    const s = await Object.keys(c.schemas).reduce(async (prev, ref) => {
+      const s = c.schemas[ref]
+      console.log(ref)
+      return {
+        ...(await prev),
+        [ref]: await refStore.resolve(s)
+      }
+    }, Promise.resolve({}))
+    console.log(Object.keys(c.schemas))
+    sourceFile.statements = ts.createNodeArray([
+      ...await genTypes(refStore, s)
+    ]);
+    console.log(printer.printFile(sourceFile));
+    // console.log(project.emitToMemory().getFiles()[0].text)
+    
+  }
 
   const ast: Ast = Object.keys(api.paths).reduce(({ endpoints, conditionals, types, paths}, path) => {
     const pathItem = api.paths[path]
@@ -50,9 +83,9 @@ function main(doc: string): void {
       { ...pathItem.put, defined: !!pathItem.put, type: 'put' } as OperationType & { defined: boolean },
       { ...pathItem.trace, defined: !!pathItem.trace, type: 'trace' } as OperationType & { defined: boolean },
     ].filter(op => op.defined)
-
+    
     operations.reduce((prev, op) => {
-      convertRequestBody(resolve(api, op.requestBody))
+      convertOperation(refStore)
       
       return { }
     }, {})

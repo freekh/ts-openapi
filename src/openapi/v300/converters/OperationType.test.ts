@@ -1,9 +1,12 @@
-import { convertRequestBody } from './RequestBody'
+import { convertRequestBody } from './OperationType'
 import { RequestBody } from '..'
 import { userComponents } from '../../ref.test'
+import { RefRoot } from '../../ref'
+
+const root = new RefRoot(userComponents)
 
 test('convert undefined', () => {
-  convertRequestBody(userComponents)(undefined)
+  convertRequestBody(root)()
 })
 
 test('convert RequestBody', () => {
@@ -51,5 +54,5 @@ test('convert RequestBody', () => {
     }
   }
   
-  convertRequestBody(userComponents)(example)
+  convertRequestBody(root)(example)
 })

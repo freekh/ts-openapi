@@ -8,3 +8,5 @@ export type Ast = {
   types: AstType[];
   paths: AstPath[];
 }
+export type RefCache<T> = { [ref: string]: T }
+

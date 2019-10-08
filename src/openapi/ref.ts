@@ -14,7 +14,7 @@ export class RefStore {
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await
-  async resolve<T>(refOr: Ref | T): Promise<T | undefined> {
+  async resolve<T>(refOr: Ref | T): Promise<T> {
     if (!refOr) {
       return refOr
     }

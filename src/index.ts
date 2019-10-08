@@ -54,17 +54,10 @@ async function main(doc: string): Promise<void> {
   if (api.components && api.components.schemas) {
     const c = api.components
 
-    const s = await Object.keys(c.schemas).reduce(async (prev, ref) => {
-      const s = c.schemas[ref]
-      console.log(ref)
-      return {
-        ...(await prev),
-        [ref]: await refStore.resolve(s)
-      }
-    }, Promise.resolve({}))
+    const s = Object.keys(c.schemas).map(ref => c.schemas[ref])
     console.log(Object.keys(c.schemas))
     sourceFile.statements = ts.createNodeArray([
-      ...await genTypes(refStore, s)
+      ...await genTypes(refStore, [{$ref: '#/components/schemas/Pet' }, {$ref: '#/components/schemas/Pets'}, {$ref: '#/components/schemas/Error'}])
     ]);
     console.log(printer.printFile(sourceFile));
     // console.log(project.emitToMemory().getFiles()[0].text)

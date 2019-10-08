@@ -6,6 +6,6 @@
     "allowJs": true,
     "moduleResolution": "node",
     "lib": ["es2019"],
-    "outDir": "build"
+    "outDir": "build",
   }
 }

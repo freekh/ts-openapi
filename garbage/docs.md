@@ -1,6 +1,6 @@
 ```ts
 import api, { get, param, DateFormat } from '@tapi/pkgs/org/test'
-import axios from 'tapi@/axios' // or fetch or request
+import axios from '@tapi/tapi-axios' // or fetch or request
 
 val testApi1 = api(URL, axios({}))
 val testApi = api(URL, axios({}), { formatters: [

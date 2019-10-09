@@ -1,15 +1,16 @@
-import { Schema } from './openapi/v300'
+import { Schema, PathItem } from './openapi/v300'
 import { Ref, RefStore, isRef } from './openapi/ref';
 import * as ts from 'typescript';
+import { OperationType } from './openapi/v300/OperationType';
 
 function refToName(ref: string): string {
   return ref.split('/').slice(-1)[0]
 }
 
-function schemaToTypeNode(schemaOrRef: Schema | Ref, refs: Ref[]): { unresolved: Ref[]; type: ts.TypeNode } {
+export function schemaToTypeNode(schemaOrRef: Schema | Ref, refs: readonly Ref[]): { unresolved: readonly Ref[]; type: ts.TypeNode } {
   if (isRef(schemaOrRef)) {
     return {
-      unresolved: refs.includes(schemaOrRef) ? refs : refs.concat(schemaOrRef),
+      unresolved: refs.find(({ $ref }) => $ref == schemaOrRef.$ref) ? refs : refs.concat(schemaOrRef),
       type: ts.createTypeReferenceNode(refToName(schemaOrRef.$ref), undefined)
     }
   } else if (schemaOrRef.type == 'object') {
@@ -73,12 +74,58 @@ function schemaToTypeNode(schemaOrRef: Schema | Ref, refs: Ref[]): { unresolved:
   }
 }
 
-export async function genTypes(refStore: RefStore, refs: Ref[]): Promise<ts.TypeAliasDeclaration[]> {
+function createSimpleTypeAliasDeclaration(name: string, type: ts.TypeNode): ts.TypeAliasDeclaration {
+  return ts.createTypeAliasDeclaration([], [], name, undefined, type)
+}
+
+export async function genTypes(refStore: RefStore, refs: readonly Ref[]): Promise<readonly ts.TypeAliasDeclaration[]> {
   return refs.reduce(async (prevP, ref) => {
     const prev: ts.TypeAliasDeclaration[] = await prevP
     const schema = await refStore.resolve<Schema>(ref)
     const { unresolved, type } = schemaToTypeNode(schema, refs) // skip refs we already know we will resolve
-    const next = [ts.createTypeAliasDeclaration([], [], refToName(ref.$ref), undefined, type)]
+    const nextName = refToName(ref.$ref)
+    if (prev.find(tad => tad.name.text == nextName)) {
+      return Promise.reject(Error(`Cannot create a new type alias for ${ref.$ref} because there is one that has the same name (${nextName}) already`))
+    }
+    const next = createSimpleTypeAliasDeclaration(nextName, type)
     return prev.concat(next).concat(await genTypes(refStore, unresolved.filter(r => !refs.includes(r))))
   }, Promise.resolve([]))
+}
+
+const PathsTypeName = 'Paths'
+
+export async function genEndpoints(refStore: RefStore, paths: readonly { path: string; pathItem: PathItem }[]): Promise<{ typeRefs: Ref[]; pathsType: ts.TypeAliasDeclaration; endpointType: ts.TypeAliasDeclaration; endpoint: ts.FunctionDeclaration }> {
+  const pathOps = paths.map(({ path, pathItem }) => {
+    const operations: (OperationType & { defined: boolean })[] = [
+      { ...pathItem.delete, defined: !!pathItem.delete, type: 'delete' } as OperationType & { defined: boolean },
+      { ...pathItem.get, defined: !!pathItem.get, type: 'get' } as OperationType & { defined: boolean },
+      { ...pathItem.head, defined: !!pathItem.head, type: 'head' } as OperationType & { defined: boolean },
+      { ...pathItem.options, defined: !!pathItem.options, type: 'options' } as OperationType & { defined: boolean },
+      { ...pathItem.patch, defined: !!pathItem.patch, type: 'patch' } as OperationType & { defined: boolean },
+      { ...pathItem.post, defined: !!pathItem.post, type: 'post' } as OperationType & { defined: boolean },
+      { ...pathItem.put, defined: !!pathItem.put, type: 'put' } as OperationType & { defined: boolean },
+      { ...pathItem.trace, defined: !!pathItem.trace, type: 'trace' } as OperationType & { defined: boolean },
+    ].filter(op => op.defined)
+    return { path, operations }
+  })
+  const pathsType = createSimpleTypeAliasDeclaration(PathsTypeName,
+    ts.createUnionTypeNode(paths.map(({ path }) => {
+      return ts.createLiteralTypeNode(ts.createStringLiteral(path))
+    }))
+  )
+
+  const tp = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode('Paths', undefined), undefined)
+  const e = ts.createConditionalTypeNode(
+    ts.createTypeReferenceNode('P', undefined),
+    ts.createTypeReferenceNode('Paths', undefined),
+    ts.createTypeReferenceNode('Paths', undefined),
+    ts.createTypeReferenceNode('Paths', undefined),
+  )
+  const a = ts.createTypeAliasDeclaration([], [], 'ApiEndpoint', [tp], e)
+  return Promise.resolve({
+    typeRefs: [],
+    pathsType,
+    endpointType: a,
+    endpoint: ts.createFunctionDeclaration(undefined, undefined, undefined, 'api', [], [], ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword), undefined)
+  })
 }

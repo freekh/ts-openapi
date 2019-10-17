@@ -115,12 +115,26 @@ export async function genEndpoints(refStore: RefStore, paths: readonly { path: s
   )
 
   const tp = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode('Paths', undefined), undefined)
-  const e = ts.createConditionalTypeNode(
-    ts.createTypeReferenceNode('P', undefined),
-    ts.createTypeReferenceNode('Paths', undefined),
-    ts.createTypeReferenceNode('Paths', undefined),
-    ts.createTypeReferenceNode('Paths', undefined),
-  )
+
+  const e = pathOps.reverse().reduce((prev, { path, operations }) => {
+    
+    return ts.createConditionalTypeNode(
+      ts.createTypeReferenceNode(tp.name, undefined),
+      ts.createLiteralTypeNode(ts.createStringLiteral(path)),
+      ts.createTypeReferenceNode('Endpoint1', undefined),
+      prev)
+  }, ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword) as ts.TypeNode)
+  // const e = ts.createConditionalTypeNode(
+  //   ts.createTypeReferenceNode('P', undefined),
+  //   ts.createLiteralTypeNode(ts.createStringLiteral('/test/path1')),
+  //   ts.createTypeReferenceNode('Endpoint1', undefined),
+  //   ts.createConditionalTypeNode(
+  //     ts.createTypeReferenceNode('P', undefined),
+  //     ts.createLiteralTypeNode(ts.createStringLiteral('/test/path2')),
+  //     ts.createTypeReferenceNode('Endpoint2', undefined),
+  //     ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword)
+  //   )
+  // )
   const a = ts.createTypeAliasDeclaration([], [], 'ApiEndpoint', [tp], e)
   return Promise.resolve({
     typeRefs: [],

@@ -1,6 +1,11 @@
 ```ts
+<<<<<<< HEAD:docs.md
 import api, { get, param, DateFormat } from '@typeapi/pkgs/org/test'
 import axios from '@typeapi/axios' // or fetch or request
+=======
+import api, { get, param, DateFormat } from '@tapi/pkgs/org/test'
+import axios from '@tapi/tapi-axios' // or fetch or request
+>>>>>>> 611753cef423c4768aa0f47ab624fb24ded13f12:garbage/docs.md
 
 val testApi1 = api(URL, axios({ token: TOKEN }))
 val testApi = api(URL, axios({}), { formatters: [

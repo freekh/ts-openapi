@@ -2,8 +2,10 @@
   "compilerOptions": {
     "module": "commonjs",
     "noImplicitAny": true,
+    "strictNullChecks": true,
     "allowJs": true,
     "moduleResolution": "node",
-    "lib": ["es2019"]
+    "lib": ["es2019"],
+    "outDir": "build",
   }
 }

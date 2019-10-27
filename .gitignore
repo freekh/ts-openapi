@@ -2,3 +2,4 @@ node_modules
 openapi.yml
 test.ts
 test.js
+yarn-error.log

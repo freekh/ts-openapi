@@ -1,4 +1,4 @@
-import { Schema, PathItem } from './openapi/v300'
+import { Schema, PathItem, Response } from './openapi/v300'
 import { Ref, RefStore, isRef } from './openapi/ref';
 import * as ts from 'typescript';
 import { OperationType } from './openapi/v300/OperationType';
@@ -79,6 +79,28 @@ function createSimpleTypeAliasDeclaration(name: string, type: ts.TypeNode): ts.T
   return ts.createTypeAliasDeclaration([], [], name, undefined, type)
 }
 
+async function createReturnType(refStore: RefStore, responses: { [key: string]: Ref | Response }): Promise<{ unresolved: Ref[]; type: ts.TypeNode }> {
+  if (Object.keys(responses).length == 0) {
+    return {
+      unresolved: [],
+      type: ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
+    }
+  } else {
+    let unresolved: Ref[] = [] // TODO: ugly!
+    ts.createUnionTypeNode(
+      await Promise.all(Object.keys(responses).map(async status => {
+        const response: Response = await refStore.resolve(responses[status])
+        Object.keys(response.content).map(responseType => {
+          const content = response.content[responseType]
+        })
+        
+        return ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
+      })
+    ))
+    return { type, unresolved }
+  }
+}
+
 async function opsToType(refStore: RefStore, refs: Ref[], path: string, ops: OperationType[]): Promise<{ unresolved: Ref[]; type: ts.TypeNode }> {
   let unresolved: Ref[] = [] // TODO: ugly!
   const type = ts.createTypeLiteralNode(await Promise.all(ops.map(async (op) => {
@@ -90,22 +112,10 @@ async function opsToType(refStore: RefStore, refs: Ref[], path: string, ops: Ope
 
       return ts.createParameter(undefined, undefined, undefined, resolvedParam.name, undefined, paramTypeRes.type, undefined)
     }))
+    const returnTypeRes = await createReturnType(refStore, op.responses)
+    unresolved = unresolved.concat(returnTypeRes.unresolved) // TODO: ugly!
 
-    Object.keys(op.responses).map(status => {
-      if (status == 'default') {
-        // TODO: du vil ha noe sånt som: 
-        type TestResponse = { default: string; 200: null;  }
-      } else {
-        try {
-          const status = parseInt(status)
-        } catch (e) {
-          throw Error(`Could not parse status: ${status} in ${op.type} of ${path}`)
-        }
-      }
-      
-    })
-    
-    const opFun = ts.createFunctionTypeNode(undefined, params, ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword))
+    const opFun = ts.createFunctionTypeNode(undefined, params, returnTypeRes.type)
     return ts.createPropertySignature(undefined, op.type, undefined, opFun, undefined)
   })))
   return { 

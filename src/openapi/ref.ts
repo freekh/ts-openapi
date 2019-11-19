@@ -8,9 +8,15 @@ export function isRef(ref: any): ref is Ref {
 export class RefStore {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private root: any;
+  private resolved: Promise<Ref[]>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(root: any) {
     this.root = root
+    this.resolved = Promise.resolve([])
+  }
+  
+  async getResolved(): Promise<Ref[]> {
+
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await

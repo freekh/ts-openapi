@@ -36,35 +36,31 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-var ref_1 = require("./ref");
-exports.userComponents = {
-    components: {
-        schemas: {
-            'User': {
-                'type': 'object',
-                'properties': {
-                    'name': {
-                        'type': 'string'
-                    },
-                    'petType': {
-                        'type': 'string'
-                    }
-                }
-            }
-        }
-    }
-};
-test('basic resolve', function () { return __awaiter(void 0, void 0, void 0, function () {
-    var root, _a;
-    return __generator(this, function (_b) {
-        switch (_b.label) {
+var api_1 = require("./api");
+var Qs = require("qs");
+var datahub = api_1["default"]({
+    baseURL: 'http://localhost:9000/v1',
+    paramsSerializer: function (params) { return Qs.stringify(params, { arrayFormat: 'repeat' }); }
+});
+var main = function () { return __awaiter(void 0, void 0, void 0, function () {
+    var from, response, e_1;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
             case 0:
-                root = new ref_1.RefStore(exports.userComponents);
-                _a = expect;
-                return [4 /*yield*/, root.resolve({ $ref: '#/components/schemas/User' })];
+                _a.trys.push([0, 2, , 3]);
+                from = new Date(2019, 0, 1, 22, 0).toISOString();
+                return [4 /*yield*/, datahub('/article/windows').get(['pp:123'], '1day')];
             case 1:
-                _a.apply(void 0, [_b.sent()]).toBe(exports.userComponents.components.schemas.User);
-                return [2 /*return*/];
+                response = _a.sent();
+                console.log(response.request.socket._httpMessage._header);
+                console.log(response.data);
+                return [3 /*break*/, 3];
+            case 2:
+                e_1 = _a.sent();
+                console.error(e_1);
+                return [3 /*break*/, 3];
+            case 3: return [2 /*return*/];
         }
     });
-}); });
+}); };
+main();

@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml'
 import * as fs from 'fs'
 import * as ts from 'typescript';
 import { OpenAPI } from './openapi/v300';
-import { delareTypeLiteralAlias, declareStringLiteralUnion, declareConditionalNeverType, createStringLitralType, createTypeRereference, EndpointDef } from './gen-ast-helpers';
+import { delareTypeLiteralAlias, declareStringLiteralUnion, declareConditionalNeverType, createStringLitralType, createTypeRereference, EndpointDef, createEndpointType, declareType, createEndpointImplementation } from './gen-ast-helpers';
 
 
 function printStatements(statements: ts.Statement[]): string {
@@ -34,9 +34,17 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
     'get': {
       parameters: { 'name': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
       returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+      body: [
+        
+      ]
+    }, 
+    'post': {
+      parameters: { 'name2': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
+      returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
       body: []
     }
   }
+  const endpointDefSmt = declareType("Test", createEndpointType(p))
   const pathsTypeStmt = declareStringLiteralUnion('Paths', ['test', 'too'])
   const endpointStmt = declareConditionalNeverType(
     'ApiEndpoint',
@@ -48,10 +56,13 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
       }
     })
   )
+  const endpointImpl = ts.createVariableStatement(undefined, [ts.createVariableDeclaration('test', undefined, createEndpointImplementation(p))])
   return [
     ...typesStmts,
     pathsTypeStmt as ts.Statement,
     endpointStmt as ts.Statement,
+    endpointDefSmt as ts.Statement,
+    endpointImpl as ts.Statement
   ]
 }
 

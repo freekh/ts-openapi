@@ -36,34 +36,47 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 exports.__esModule = true;
-var ref_1 = require("./ref");
-exports.userComponents = {
-    components: {
-        schemas: {
-            'User': {
-                'type': 'object',
-                'properties': {
-                    'name': {
-                        'type': 'string'
-                    },
-                    'petType': {
-                        'type': 'string'
-                    }
-                }
-            }
+var gen_1 = require("./gen");
+var fs = require("fs");
+var ref_1 = require("./openapi/ref");
+var yaml = require("js-yaml");
+var ts = require("typescript");
+var doc = yaml.safeLoad(fs.readFileSync('./test/assets/openapi/v300/petstore.yml', 'utf8'));
+var refStore = new ref_1.RefStore(doc);
+function printStatements(statements) {
+    var sourceFile = ts.createSourceFile('test.ts', '', ts.ScriptTarget.ESNext, false, ts.ScriptKind.TS);
+    var printer = ts.createPrinter({
+        newLine: ts.NewLineKind.LineFeed,
+        removeComments: false,
+        omitTrailingSemicolon: true
+    });
+    sourceFile.statements = ts.createNodeArray(statements);
+    return printer.printFile(sourceFile);
+}
+test('refs to type alias declarations', function () { return __awaiter(void 0, void 0, void 0, function () {
+    var types;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0: return [4 /*yield*/, gen_1.genTypes(refStore, [{ $ref: '#/components/schemas/Pet' }, { $ref: '#/components/schemas/Pets' }, { $ref: '#/components/schemas/Error' }])];
+            case 1:
+                types = _a.sent();
+                expect('\n' + printStatements(types)).toBe("\ntype Pet = {\n    id: number;\n    name: string;\n    tag: \"one\" | \"two\";\n};\ntype Pets = Pet[];\ntype Error = {\n    code: number;\n    message: string;\n};\n");
+                return [2 /*return*/];
         }
-    }
-};
-test('basic resolve', function () { return __awaiter(void 0, void 0, void 0, function () {
-    var root, _a;
+    });
+}); });
+test('todo', function () { return __awaiter(void 0, void 0, void 0, function () {
+    var _a, typeRefs, pathsType, endpoint, endpointType, types;
     return __generator(this, function (_b) {
         switch (_b.label) {
-            case 0:
-                root = new ref_1.RefStore(exports.userComponents);
-                _a = expect;
-                return [4 /*yield*/, root.resolve({ $ref: '#/components/schemas/User' })];
+            case 0: return [4 /*yield*/, gen_1.genEndpoints(refStore, Object.keys(doc.paths).map(function (path) { return ({ path: path, pathItem: doc.paths[path] }); }))];
             case 1:
-                _a.apply(void 0, [_b.sent()]).toBe(exports.userComponents.components.schemas.User);
+                _a = _b.sent(), typeRefs = _a.typeRefs, pathsType = _a.pathsType, endpoint = _a.endpoint, endpointType = _a.endpointType;
+                return [4 /*yield*/, gen_1.genTypes(refStore, typeRefs)];
+            case 2:
+                types = _b.sent();
+                console.log(typeRefs);
+                expect('\n' + printStatements(types.concat([pathsType, endpointType, endpoint]))).toBe("\n");
                 return [2 /*return*/];
         }
     });

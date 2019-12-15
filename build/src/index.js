@@ -1,15 +1,4 @@
 "use strict";
-var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
-        }
-        return t;
-    };
-    return __assign.apply(this, arguments);
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -46,80 +35,73 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __spreadArrays = (this && this.__spreadArrays) || function () {
+    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
+    for (var r = Array(s), k = 0, i = 0; i < il; i++)
+        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
+            r[k] = a[j];
+    return r;
+};
 exports.__esModule = true;
 var yaml = require("js-yaml");
 var fs = require("fs");
-var OperationType_1 = require("./openapi/v300/converters/OperationType");
-var ref_1 = require("./openapi/ref");
-var ts_morph_1 = require("ts-morph");
-var gen_1 = require("./gen");
-// function resolve(api: OpenAPI, resolved: { [$ref: string]: Schema }, schema: Schema): { [$ref: string]: Schema }  {
-//   jsref(api, )
-// }
-// function schema2TypeAlias(schema: Schema): OptionalKind<TypeAliasDeclarationStructure> {
-//   return {
-//     name: '',
-//     type: '',
-//     docs: ['hello'],
-//   }
-// }
-// function param2Function(parameters: Parameter[], body: FunctionBody): ArrowFunction {
-// return 1
-// }
-// function pathItem2APIBaseExpr(pathItem: PathItem): Expression {
-// return 1
-// }
+var ts = require("typescript");
+var gen_ast_helpers_1 = require("./gen-ast-helpers");
+function printStatements(statements) {
+    var sourceFile = ts.createSourceFile('test.ts', '', ts.ScriptTarget.ESNext, false, ts.ScriptKind.TS);
+    var printer = ts.createPrinter({
+        newLine: ts.NewLineKind.LineFeed,
+        removeComments: false,
+        omitTrailingSemicolon: true
+    });
+    sourceFile.statements = ts.createNodeArray(statements);
+    return printer.printFile(sourceFile);
+}
+// eslint-disable-next-line @typescript-eslint/require-await
+function genStatements(api) {
+    return __awaiter(this, void 0, void 0, function () {
+        var typesStmts, p, pathsTypeStmt, endpointStmt;
+        return __generator(this, function (_a) {
+            typesStmts = [
+                gen_ast_helpers_1.delareTypeLiteralAlias('hallo', {
+                    test: ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
+                }),
+            ];
+            p = {
+                'get': {
+                    parameters: { 'name': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
+                    returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+                    body: []
+                }
+            };
+            pathsTypeStmt = gen_ast_helpers_1.declareStringLiteralUnion('Paths', ['test', 'too']);
+            endpointStmt = gen_ast_helpers_1.declareConditionalNeverType('ApiEndpoint', 'P', pathsTypeStmt, ['test', 'too'].map(function (value) {
+                return {
+                    left: gen_ast_helpers_1.createStringLitralType(value),
+                    right: gen_ast_helpers_1.createTypeRereference('hello')
+                };
+            }));
+            return [2 /*return*/, __spreadArrays(typesStmts, [
+                    pathsTypeStmt,
+                    endpointStmt,
+                ])];
+        });
+    });
+}
 function main(doc) {
     return __awaiter(this, void 0, void 0, function () {
-        var api, project, refStore, c_1, s, apiFile, ast;
-        var _this = this;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var api, _a, _b, _c;
+        return __generator(this, function (_d) {
+            switch (_d.label) {
                 case 0:
                     api = yaml.safeLoad(doc);
-                    project = new ts_morph_1.Project({});
-                    refStore = new ref_1.RefStore(api);
-                    if (!(api.components && api.components.schemas)) return [3 /*break*/, 2];
-                    c_1 = api.components;
-                    return [4 /*yield*/, Object.keys(c_1.schemas).reduce(function (prev, ref) { return __awaiter(_this, void 0, void 0, function () {
-                            var s, _a, _b;
-                            return __generator(this, function (_c) {
-                                switch (_c.label) {
-                                    case 0:
-                                        s = c_1.schemas[ref];
-                                        _a = [__assign({}, prev)];
-                                        _b = {};
-                                        return [4 /*yield*/, refStore.resolve(s)];
-                                    case 1: return [2 /*return*/, __assign.apply(void 0, _a.concat([(_b.ref = _c.sent(), _b)]))];
-                                }
-                            });
-                        }); }, Promise.resolve({}))];
+                    // const schemas = api.components.schemas
+                    _b = (_a = console).log;
+                    _c = printStatements;
+                    return [4 /*yield*/, genStatements(api)];
                 case 1:
-                    s = _a.sent();
-                    apiFile = project.createSourceFile('api.ts');
-                    apiFile.addStatements(gen_1.genTypes(s));
-                    console.log(project.emitToMemory().getFiles()[0].text);
-                    _a.label = 2;
-                case 2:
-                    ast = Object.keys(api.paths).reduce(function (_a, path) {
-                        var endpoints = _a.endpoints, conditionals = _a.conditionals, types = _a.types, paths = _a.paths;
-                        var pathItem = api.paths[path];
-                        var operations = [
-                            __assign(__assign({}, pathItem["delete"]), { defined: !!pathItem["delete"], type: 'delete' }),
-                            __assign(__assign({}, pathItem.get), { defined: !!pathItem.get, type: 'get' }),
-                            __assign(__assign({}, pathItem.head), { defined: !!pathItem.head, type: 'head' }),
-                            __assign(__assign({}, pathItem.options), { defined: !!pathItem.options, type: 'options' }),
-                            __assign(__assign({}, pathItem.patch), { defined: !!pathItem.patch, type: 'patch' }),
-                            __assign(__assign({}, pathItem.post), { defined: !!pathItem.post, type: 'post' }),
-                            __assign(__assign({}, pathItem.put), { defined: !!pathItem.put, type: 'put' }),
-                            __assign(__assign({}, pathItem.trace), { defined: !!pathItem.trace, type: 'trace' }),
-                        ].filter(function (op) { return op.defined; });
-                        operations.reduce(function (prev, op) {
-                            OperationType_1.convertOperation(refStore);
-                            return {};
-                        }, {});
-                        return { endpoints: endpoints, conditionals: conditionals, types: types, paths: paths };
-                    }, { endpoints: [], conditionals: [], types: [], paths: [] });
+                    // const schemas = api.components.schemas
+                    _b.apply(_a, [_c.apply(void 0, [_d.sent()])]);
                     return [2 /*return*/];
             }
         });

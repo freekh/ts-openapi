@@ -1,10 +1,8 @@
 import * as ts from 'typescript';
 
-
 /*******************************************************
  * Various TS AST helpers to avoid messy code
  *******************************************************/
-
 
 export function delareTypeLiteralAlias(name: string, fields: { [name: string]: ts.TypeNode }): ts.TypeAliasDeclaration {
   return ts.createTypeAliasDeclaration(
@@ -41,7 +39,6 @@ export function declareStringLiteralUnion(name: string, values: string[]): ts.Ty
 
 
 /**
- * 
  * Example:
  * type ApiEndpoint<P extends Paths> =
  *   P extends '/string' ? { get(): string } :
@@ -62,8 +59,8 @@ export function declareConditionalNeverType(name: string, typeParameterName: str
     name,
     [typeParameter],
     conditionals.reduce((prev, curr) => {
-        return ts.createConditionalTypeNode(createTypeRereference(typeParameterName), curr.left, curr.right, prev)
-      }, 
+      return ts.createConditionalTypeNode(createTypeRereference(typeParameterName), curr.left, curr.right, prev)
+    },
       ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword) as ts.TypeNode
     )
   )
@@ -77,12 +74,32 @@ export type EndpointDef = {
   };
 }
 
-// export function createEndpointType(endpointDef: EndpointDef): ts.TypeLiteralNode {
-//   return ts.createTypeLiteralNode(Object.keys(endpointDef).map(method => {
-//     return 
-//   }))
-// }
+function createEndpoint<A>(endpointDef: EndpointDef, createChild: (method: string, params: ts.ParameterDeclaration[], returns: ts.TypeNode, body: ts.Statement[]) => A): A[] {
+  return Object.keys(endpointDef).map(method => {
+    const methodImpl = endpointDef[method]
+    const params = Object.keys(methodImpl.parameters).map(param => ts.createParameter(undefined, undefined, undefined, param, undefined, methodImpl.parameters[param]))
+    return createChild(method, params, methodImpl.returns, methodImpl.body)
+  })
+}
 
-// export function createEndpointImplementation(endpointDef: EndpointDef): ts.Statement[] {
-//   return []
-// }
+export function createEndpointType(endpointDef: EndpointDef): ts.TypeLiteralNode {
+  return ts.createTypeLiteralNode(createEndpoint(endpointDef, (method, params, type) => 
+    ts.createPropertySignature(undefined, method, undefined, 
+      ts.createFunctionTypeNode(undefined, params, type), undefined
+    )
+  ))
+}
+
+export function declareType(name: string, node: ts.TypeNode): ts.TypeAliasDeclaration {
+  return ts.createTypeAliasDeclaration(undefined, undefined, name, undefined, node)
+}
+
+export function createEndpointImplementation(endpointDef: EndpointDef): ts.ObjectLiteralExpression {
+  return ts.createObjectLiteral(
+    createEndpoint(endpointDef, (method, params, type, body) =>
+      ts.createPropertyAssignment(method, 
+        ts.createArrowFunction(undefined, undefined, params, type, undefined, ts.createBlock(body, true))
+      )
+    )
+  )
+}

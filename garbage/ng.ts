@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios'
+import axios, { AxiosStatic, AxiosResponse, AxiosRequestConfig, AxiosInstance } from 'axios'
 
 //---
 
@@ -15,9 +15,11 @@ type InnerDTO = {
 //---
 
 type Paths = '/test1' | '/test2' 
+const paths = ['/test1', '/test2']
 
 //---
 
+// TODO: WebData & https://github.com/smaccoun/ts-remotedata
 type Test1Endpoint = {
   get: (id: string[]) => Promise<Test1Response>
 }
@@ -34,42 +36,63 @@ type Endpoint<P extends Paths> =
 
 //---
 
-
 function unknownPath(path: Paths): never {
-  throw Error(`Unknown path ${path}`)
+  throw Error(`Unknown path ${path}. Valid paths are: ${paths.join(',')}`)
 }
 
-type Engine<EngineHandler, EngineResponse, Base> = {
-  init: (host: string) => EngineHandler;
-  validate: boolean;
-  handler: (engine: EngineHandler) => (method: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
-  process: (response: EngineResponse) => Promise<Base>
+interface Engine<EngineHandler, EngineResponse> {
+  init(host: string): EngineHandler
+  handler(engine: EngineHandler): (method: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
+  process<R>(response: EngineResponse): R
 }
 
-function api<P extends Paths, EngineHandler, Response>(host: string, engine: Engine<EngineHandler, Response, Endpoint<P>>): (path: P) => Endpoint<P> {
+function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler, Response>): { path: <P extends Paths>(path: P) => Endpoint<P> } {
   const engineHandler = engine.init(host)
   const handle = engine.handler(engineHandler)
-  const a = function path(p: P) {
+  const path = <P extends Paths>(p: P): Endpoint<P> => {
     switch(p) {
       case '/test1':
         return {
           get: (id?: string[]) => 
             engine.process(handle('get', p, { id, }))
-        } as Test1Endpoint
+        } as Test1Endpoint as Endpoint<P>
       case '/test2':
         return {
-          get: (id?: string[], from?: string, to?: string, limit?: number) => {
-            throw new Error('')
-          }
-            // engine.process(handle('get', p, { id, from , to, limit })) as Promise<Test2Response>>
-        }
+          get: (id?: string[], from?: string, to?: string, limit?: number) => 
+            engine.process(handle('get', p, { id, from , to, limit }))
+        } as Test2Endpoint as Endpoint<P>
       default:
         return unknownPath(p)
     }
   }
-  return a
+  return {
+    // operations: {
+    //   getTest1(id?: string[]) {
+    //     return path('/test1').get(id)
+    //   }
+    // },
+    path,
+  }
 }
 
-//---
+// //---
+// class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
+//   private config?: AxiosRequestConfig
+//   constructor(config?: AxiosRequestConfig) {
+//     this.config = config;
+//   }
+//   init(host: string): AxiosInstance {
+//     return axios.create(this.config)
+//   } 
+//   handler(engine: AxiosInstance): (method: todofixmethodsuniontype, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
+//     engine.put
+//   }
+//   process<R>(response: AxiosResponse): R {
+//     response.data
+//     throw new Error("Method not implemented.")
+//   }
+// }
+
+// api('test', new AxiosEngine()).path('/test2').get([])
 
 export default api

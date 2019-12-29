@@ -56,7 +56,12 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
       }
     })
   )
-  const endpointImpl = ts.createVariableStatement(undefined, [ts.createVariableDeclaration('test', undefined, createEndpointImplementation(p))])
+  const endpointImpl = ts.createVariableStatement(undefined, [
+    // ts.createVariableDeclaration('test', undefined, createEndpointImplementation(p))
+    ts.createArrowFunction(undefined, [ts.createTypeParameterDeclaration('P', undefined, undefined)], [ts.createTypeParameterDeclaration('p', undefined, undefined)], undefined, undefined, ts.createSwitch(ts.createIdentifier('p'), ts.createCaseBlock([ts.createCaseClause(ts.createStringLiteral('test1'), [])])))
+    
+    // ts.createSwitch(ts.createCaseBlock())
+  ])
   return [
     ...typesStmts,
     pathsTypeStmt as ts.Statement,

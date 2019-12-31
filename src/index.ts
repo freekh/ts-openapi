@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml'
 import * as fs from 'fs'
 import * as ts from 'typescript';
 import { OpenAPI } from './openapi/v300';
-import { delareTypeLiteralAlias, declareStringLiteralUnion, declareConditionalNeverType, createStringLitralType, createTypeRereference, EndpointDef, createEndpointType, declareType, createEndpointImplementation } from './gen-ast-helpers';
+import { delareTypeLiteralAlias, declareStringLiteralUnion, declareConditionalNeverType, createStringLitralType, createTypeRereference as createTypeReference, EndpointDef, createEndpointType, declareType, createEndpointImplementation, createPaths } from './gen-ast-helpers';
 
 
 function printStatements(statements: ts.Statement[]): string {
@@ -35,7 +35,6 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
       parameters: { 'name': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
       returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
       body: [
-        
       ]
     }, 
     'post': {
@@ -47,20 +46,20 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
   const endpointDefSmt = declareType("Test", createEndpointType(p))
   const pathsTypeStmt = declareStringLiteralUnion('Paths', ['test', 'too'])
   const endpointStmt = declareConditionalNeverType(
-    'ApiEndpoint',
+    'Endpoint',
     'P', pathsTypeStmt,
     ['test', 'too'].map(value => {
       return {
         left: createStringLitralType(value),
-        right: createTypeRereference('hello'),
+        right: createTypeReference('hello'),
       }
     })
   )
   const endpointImpl = ts.createVariableStatement(undefined, [
-    // ts.createVariableDeclaration('test', undefined, createEndpointImplementation(p))
-    ts.createArrowFunction(undefined, [ts.createTypeParameterDeclaration('P', undefined, undefined)], [ts.createTypeParameterDeclaration('p', undefined, undefined)], undefined, undefined, ts.createSwitch(ts.createIdentifier('p'), ts.createCaseBlock([ts.createCaseClause(ts.createStringLiteral('test1'), [])])))
-    
-    // ts.createSwitch(ts.createCaseBlock())
+    ts.createVariableDeclaration('test', undefined, 
+      // createEndpointImplementation(p)
+      createPaths({ 'test1': p }, endpointStmt)
+    )
   ])
   return [
     ...typesStmts,

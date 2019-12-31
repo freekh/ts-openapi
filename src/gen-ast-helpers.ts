@@ -70,15 +70,14 @@ export type EndpointDef = {
   [method: string]: {
     parameters: { [name: string]: ts.TypeNode };
     returns: ts.TypeNode;
-    body: ts.Statement[];
   };
 }
 
-function createEndpoint<A>(endpointDef: EndpointDef, createChild: (method: string, params: ts.ParameterDeclaration[], returns: ts.TypeNode, body: ts.Statement[]) => A): A[] {
+function createEndpoint<A>(endpointDef: EndpointDef, createChild: (method: string, params: ts.ParameterDeclaration[], returns: ts.TypeNode) => A): A[] {
   return Object.keys(endpointDef).map(method => {
     const methodImpl = endpointDef[method]
     const params = Object.keys(methodImpl.parameters).map(param => ts.createParameter(undefined, undefined, undefined, param, undefined, methodImpl.parameters[param]))
-    return createChild(method, params, methodImpl.returns, methodImpl.body)
+    return createChild(method, params, methodImpl.returns)
   })
 }
 
@@ -94,11 +93,39 @@ export function declareType(name: string, node: ts.TypeNode): ts.TypeAliasDeclar
   return ts.createTypeAliasDeclaration(undefined, undefined, name, undefined, node)
 }
 
-export function createEndpointImplementation(endpointDef: EndpointDef): ts.ObjectLiteralExpression {
+export function createPaths(endpointDefs: { [path: string]: EndpointDef }, endpointDecl: ts.TypeAliasDeclaration): ts.ArrowFunction {
+  const pathTypeParam = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode('Paths', undefined))
+  const pathsTypeRef = ts.createTypeReferenceNode(pathTypeParam.name, undefined)
+  const pathParam = 'p'
+  return ts.createArrowFunction(
+    undefined,
+    [pathTypeParam],
+    [ts.createParameter(undefined, undefined, undefined, pathParam, undefined, pathsTypeRef)],
+    ts.createTypeReferenceNode(endpointDecl.name, [pathsTypeRef]),
+    undefined,
+    ts.createBlock([
+      ts.createSwitch(ts.createIdentifier(pathParam), ts.createCaseBlock(
+        Object.keys(endpointDefs).map(path => {
+          return ts.createCaseClause(ts.createStringLiteral(path), [
+            ts.createStatement(createEndpointImplementation(endpointDefs[path]))
+          ]) as ts.CaseOrDefaultClause
+        }).concat(ts.createDefaultClause([]))
+      ))
+    ])
+  )
+}
+
+function createA(): ts.CallExpression {
+  return ts.createCall(ts.createIdentifier('engine'))
+}
+
+function createEndpointImplementation(endpointDef: EndpointDef): ts.ObjectLiteralExpression {
   return ts.createObjectLiteral(
-    createEndpoint(endpointDef, (method, params, type, body) =>
+    createEndpoint(endpointDef, (method, params, type) =>
       ts.createPropertyAssignment(method, 
-        ts.createArrowFunction(undefined, undefined, params, type, undefined, ts.createBlock(body, true))
+        ts.createArrowFunction(undefined, undefined, params, type, undefined, 
+          ts.createBlock([ts.createStatement(createA())])
+        )
       )
     )
   )

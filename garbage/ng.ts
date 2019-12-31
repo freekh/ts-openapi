@@ -55,12 +55,12 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
         return {
           get: (id?: string[]) => 
             engine.process(handle('get', p, { id, }))
-        } as Test1Endpoint as Endpoint<P>
+        } as Endpoint<P>
       case '/test2':
         return {
           get: (id?: string[], from?: string, to?: string, limit?: number) => 
             engine.process(handle('get', p, { id, from , to, limit }))
-        } as Test2Endpoint as Endpoint<P>
+        } as Endpoint<P>
       default:
         return unknownPath(p)
     }
@@ -76,23 +76,24 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
 }
 
 // //---
-// class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
-//   private config?: AxiosRequestConfig
-//   constructor(config?: AxiosRequestConfig) {
-//     this.config = config;
-//   }
-//   init(host: string): AxiosInstance {
-//     return axios.create(this.config)
-//   } 
-//   handler(engine: AxiosInstance): (method: todofixmethodsuniontype, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
-//     engine.put
-//   }
-//   process<R>(response: AxiosResponse): R {
-//     response.data
-//     throw new Error("Method not implemented.")
-//   }
-// }
+class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
+  private config?: AxiosRequestConfig
+  constructor(config?: AxiosRequestConfig) {
+    this.config = config;
+  }
+  init(host: string): AxiosInstance {
+    return axios.create(this.config)
+  } 
+  handler(engine: AxiosInstance): (method: string, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
+    engine.put
+    throw new Error()
+  }
+  process<R>(response: AxiosResponse): R {
+    response.data
+    throw new Error("Method not implemented.")
+  }
+}
 
-// api('test', new AxiosEngine()).path('/test2').get([])
+api('test', new AxiosEngine()).path('/test2').get([])
 
 export default api

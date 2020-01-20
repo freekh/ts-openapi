@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml'
 import * as fs from 'fs'
 import * as ts from 'typescript';
 import { OpenAPI } from './openapi/v300';
-import { delareTypeLiteralAlias, declareStringLiteralUnion, declareConditionalNeverType, createStringLitralType, createTypeRereference as createTypeReference, EndpointDef, createEndpointType, declareType, createEndpointImplementation, createPaths } from './gen-ast-helpers';
+import { delareTypeLiteralAlias, declareStringLiteralUnion, declareConditionalNeverType, createStringLitralType, createTypeRereference as createTypeReference, EndpointDef, createEndpointType, declareType, createPaths } from './gen-ast-helpers';
 
 
 function printStatements(statements: ts.Statement[]): string {
@@ -34,16 +34,13 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
     'get': {
       parameters: { 'name': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
       returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-      body: [
-      ]
-    }, 
+    },
     'post': {
       parameters: { 'name2': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
       returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-      body: []
     }
   }
-  const endpointDefSmt = declareType("Test", createEndpointType(p))
+  const endpointDefSmt = declareType('Test', createEndpointType(p))
   const pathsTypeStmt = declareStringLiteralUnion('Paths', ['test', 'too'])
   const endpointStmt = declareConditionalNeverType(
     'Endpoint',
@@ -56,7 +53,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
     })
   )
   const endpointImpl = ts.createVariableStatement(undefined, [
-    ts.createVariableDeclaration('test', undefined, 
+    ts.createVariableDeclaration('test', undefined,
       // createEndpointImplementation(p)
       createPaths({ 'test1': p }, endpointStmt)
     )
@@ -70,7 +67,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
   ]
 }
 
-async function main(doc: string): Promise<void> {  
+async function main(doc: string): Promise<void> {
   const api = yaml.safeLoad(doc) as OpenAPI
   // const schemas = api.components.schemas
 

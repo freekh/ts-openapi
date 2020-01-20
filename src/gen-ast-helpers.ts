@@ -93,8 +93,24 @@ export function declareType(name: string, node: ts.TypeNode): ts.TypeAliasDeclar
   return ts.createTypeAliasDeclaration(undefined, undefined, name, undefined, node)
 }
 
-function createA(): ts.CallExpression {
-  return ts.createCall(ts.createIdentifier('engine'), undefined, undefined)
+function createA(): ts.VariableStatement {
+  //  const engineHandler = engine.init(host)
+  return ts.createVariableStatement(undefined, ts.createVariableDeclarationList([
+    ts.createVariableDeclaration(
+      'a',
+      undefined,
+      ts.createCall(
+        ts.createPropertyAccess(
+          ts.createIdentifier('engine'),
+          ts.createIdentifier('init')
+        ),
+        undefined,
+        [
+          ts.createIdentifier('host')
+        ],
+      )
+    )
+  ]))
 }
 
 function createEndpointImplementation(endpointDef: EndpointDef): ts.ObjectLiteralExpression {
@@ -103,7 +119,7 @@ function createEndpointImplementation(endpointDef: EndpointDef): ts.ObjectLitera
       ts.createPropertyAssignment(method,
         ts.createArrowFunction(undefined, undefined, params, type, undefined,
           ts.createBlock([
-            ts.createStatement(createA())
+            createA()
           ])
         )
       )

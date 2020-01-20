@@ -14,7 +14,7 @@ type InnerDTO = {
 
 //---
 
-type Paths = '/test1' | '/test2' 
+type Paths = '/test1' | '/test2'
 const paths = ['/test1', '/test2']
 
 //---
@@ -53,12 +53,12 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
     switch(p) {
       case '/test1':
         return {
-          get: (id?: string[]) => 
+          get: (id?: string[]) =>
             engine.process(handle('get', p, { id, }))
         } as Endpoint<P>
       case '/test2':
         return {
-          get: (id?: string[], from?: string, to?: string, limit?: number) => 
+          get: (id?: string[], from?: string, to?: string, limit?: number) =>
             engine.process(handle('get', p, { id, from , to, limit }))
         } as Endpoint<P>
       default:
@@ -83,7 +83,7 @@ class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
   }
   init(host: string): AxiosInstance {
     return axios.create(this.config)
-  } 
+  }
   handler(engine: AxiosInstance): (method: string, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
     engine.put
     throw new Error()

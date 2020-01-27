@@ -6,6 +6,7 @@ type Test1DTO = {
   id: string,
 }
 type Test1Response = Test1DTO[]
+type Test1Headers = { 'x-next': string; }
 type Test2Response = { [id: string]: InnerDTO[] }
 type InnerDTO = {
   date: Date,
@@ -19,8 +20,13 @@ const paths = ['/test1', '/test2']
 
 //---
 
+type CompleteResponse<R, T> = Promise<{ headers: Test1Headers; statusCode: number; data: T; engineResponse: R; }>
+
 // TODO: WebData & https://github.com/smaccoun/ts-remotedata
-type Test1Endpoint = {
+type Test1Endpoint<R> = {
+  complete: {
+    get: (id: string[]) => CompleteResponse<R, Test1Response>
+  }
   get: (id: string[]) => Promise<Test1Response>
 }
 type Test2Endpoint = {
@@ -29,8 +35,8 @@ type Test2Endpoint = {
 
 //---
 
-type Endpoint<P extends Paths> =
-  P extends '/test1' ? Test1Endpoint :
+type Endpoint<R, P extends Paths> =
+  P extends '/test1' ? Test1Endpoint<R> :
   P extends '/test2' ? Test2Endpoint :
   never
 
@@ -46,21 +52,21 @@ interface Engine<EngineHandler, EngineResponse> {
   process<R>(response: EngineResponse): R
 }
 
-function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler, Response>): { path: <P extends Paths>(path: P) => Endpoint<P> } {
+function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler, Response>): { path: <P extends Paths>(path: P) => Endpoint<Response, P> } {
   const engineHandler = engine.init(host)
   const handle = engine.handler(engineHandler)
-  const path = <P extends Paths>(p: P): Endpoint<P> => {
+  const path = <P extends Paths>(p: P): Endpoint<Response, P> => {
     switch(p) {
       case '/test1':
         return {
           get: (id?: string[]) =>
             engine.process(handle('get', p, { id, }))
-        } as Endpoint<P>
+        } as Test1Endpoint<Response> as Endpoint<Response, P>
       case '/test2':
         return {
           get: (id?: string[], from?: string, to?: string, limit?: number) =>
             engine.process(handle('get', p, { id, from , to, limit }))
-        } as Endpoint<P>
+        } as Endpoint<Response, P>
       default:
         return unknownPath(p)
     }
@@ -94,6 +100,7 @@ class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
   }
 }
 
-api('test', new AxiosEngine()).path('/test2').get([])
+api('test', new AxiosEngine()).path('/test1').get([])
+
 
 export default api

@@ -20,25 +20,34 @@ const paths = ['/test1', '/test2']
 
 //---
 
-type CompleteResponse<R, T> = Promise<{ headers: Test1Headers; statusCode: number; data: T; engineResponse: R; }>
+type CompleteResponse<R, T, H> = Promise<{ headers: H; statusCode: number; data: T; engineResponse: R; }>
 
-// TODO: WebData & https://github.com/smaccoun/ts-remotedata
 type Test1Endpoint<R> = {
-  complete: {
-    get: (id: string[]) => CompleteResponse<R, Test1Response>
-  }
   get: (id: string[]) => Promise<Test1Response>
 }
 type Test2Endpoint = {
   get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<Test2Response>
 }
 
+
+type Test1CompleteEndpoint<R> = {
+  get: (id: string[]) => Promise<{ headers: object; data: Test1Response }>
+}
+type Test2CompleteEndpoint = {
+  get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<{ headers: object; data: Test2Response }>
+}
+
 //---
 
-type Endpoint<R, P extends Paths> =
+type Endpoint<R, C extends Complete, P extends Paths> = C extends Complete.Off ? (
   P extends '/test1' ? Test1Endpoint<R> :
   P extends '/test2' ? Test2Endpoint :
   never
+) : C extends Complete.On ? (
+  P extends '/test1' ? Test1CompleteEndpoint<R> :
+  P extends '/test2' ? Test2CompleteEndpoint :
+  never
+) : never
 
 //---
 
@@ -46,33 +55,58 @@ function unknownPath(path: Paths): never {
   throw Error(`Unknown path ${path}. Valid paths are: ${paths.join(',')}`)
 }
 
+// Or FullResponse or WithResponseData (full, data-only)
+enum Complete {
+  On = "on",
+  Off = "off",
+}
+
 interface Engine<EngineHandler, EngineResponse> {
   init(host: string): EngineHandler
   handler(engine: EngineHandler): (method: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
+  // TODO: encode
+  // TODO: validate
   process<R>(response: EngineResponse): R
 }
 
-function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler, Response>): { path: <P extends Paths>(path: P) => Endpoint<Response, P> } {
+function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler, Response>): { path: <P extends Paths, C extends Complete = Complete.Off>(path: P, complete?: C) => Endpoint<Response, C, P> } {
   const engineHandler = engine.init(host)
   const handle = engine.handler(engineHandler)
-  const path = <P extends Paths>(p: P): Endpoint<Response, P> => {
-    switch(p) {
-      case '/test1':
-        return {
-          get: (id?: string[]) =>
-            engine.process(handle('get', p, { id, }))
-        } as Test1Endpoint<Response> as Endpoint<Response, P>
-      case '/test2':
-        return {
-          get: (id?: string[], from?: string, to?: string, limit?: number) =>
-            engine.process(handle('get', p, { id, from , to, limit }))
-        } as Endpoint<Response, P>
-      default:
-        return unknownPath(p)
+  const path = <P extends Paths, C extends Complete = Complete.Off>(p: P, complete: Complete = Complete.Off): Endpoint<Response, C, P> => {
+    if (complete == Complete.On) {
+      switch(p) {
+        case '/test1':
+          return {
+            get: (id?: string[]) =>
+              engine.process(handle('get', p, { id, }))
+          } as Endpoint<Response, C, P>
+        case '/test2':
+          return {
+            get: (id?: string[], from?: string, to?: string, limit?: number) =>
+              engine.process(handle('get', p, { id, from , to, limit }))
+          } as Endpoint<Response, C, P>
+        default:
+          return unknownPath(p)
+      }
+    } else {
+      switch(p) {
+        case '/test1':
+          return {
+            get: (id?: string[]) =>
+              engine.process(handle('get', p, { id, }))
+          } as Endpoint<Response, C, P>
+        case '/test2':
+          return {
+            get: (id?: string[], from?: string, to?: string, limit?: number) =>
+              engine.process(handle('get', p, { id, from , to, limit }))
+          } as Endpoint<Response, C, P>
+        default:
+          return unknownPath(p)
+      }
     }
   }
   return {
-    // operations: {
+    // methods: {
     //   getTest1(id?: string[]) {
     //     return path('/test1').get(id)
     //   }
@@ -100,7 +134,7 @@ class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
   }
 }
 
-api('test', new AxiosEngine()).path('/test1').get([])
+api('test', new AxiosEngine()).path('/test1', Complete.On).get([])
 
 
 export default api

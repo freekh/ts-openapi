@@ -141,6 +141,11 @@ function convertTypeDeclarationToRef(node: ts.TypeParameterDeclaration): ts.Type
   return ts.createTypeReferenceNode(node.name, undefined)
 }
 
+// TODO:
+const EndpointName = 'Endpoint'
+const PathsName = 'Paths'
+const FullResponseOrNotName = 'FullResponseOrNot'
+
 function createEndpointImplementation(
   engineProcess: ts.PropertyAccessExpression,
   handleIdentifier: ts.Identifier,
@@ -165,7 +170,7 @@ function createEndpointImplementation(
         )
       )
     )),
-    ts.createTypeReferenceNode('Endpoint', [responseTypeRef, fullResponseOrNotTypeRef, pathsTypeRef])
+    ts.createTypeReferenceNode(EndpointName, [responseTypeRef, fullResponseOrNotTypeRef, pathsTypeRef])
   )
 }
 
@@ -177,7 +182,7 @@ export function createPaths(
   endpointDefs: { [path: string]: EndpointDef },
   endpointDecl: ts.TypeAliasDeclaration,
 ): ts.ArrowFunction {
-  const pathTypeParam = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode('Paths', undefined))
+  const pathTypeParam = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode(PathsName, undefined))
   const pathsTypeRef = convertTypeDeclarationToRef(pathTypeParam)
   const pathIdentifier = ts.createIdentifier('p')
   const switchStmt = ts.createBlock([
@@ -208,15 +213,21 @@ export function createPaths(
 }
 
 export function createApiFunction(endpointDefs: { [path: string]: EndpointDef }, endpointDecl: ts.TypeAliasDeclaration): ts.FunctionDeclaration {
+
   const engineHandlerTypeDecl =  ts.createTypeParameterDeclaration('EngineHandler')
   const responseTypeDecl =  ts.createTypeParameterDeclaration('Response')
-  const fullResponseOrNotTypeDecl = ts.createTypeParameterDeclaration('FullResponseOrNot')
+  const fullResponseOrNotTypeDecl = ts.createTypeParameterDeclaration('FR')
 
   const hostParam = ts.createParameter([], [], undefined, 'host', undefined, ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword))
+  const engineParam = ts.createParameter([], [], undefined, 'engine', undefined, ts.createTypeReferenceNode('Engine', [
+    convertTypeDeclarationToRef(engineHandlerTypeDecl),
+    convertTypeDeclarationToRef(responseTypeDecl),
+  ]))
 
+  const pathName = 'path'
 
   const pathDeclaration = createConstStatement(
-    'path',
+    pathName,
     createPaths(
       ts.createPropertyAccess(
         ts.createIdentifier('engine'),
@@ -229,9 +240,38 @@ export function createApiFunction(endpointDefs: { [path: string]: EndpointDef },
       endpointDecl
     ),
   )
-  //{ path: <P extends Paths, C extends Complete = Complete.Off>(path: P, complete?: C) => Endpoint<Response, C, P> }
+  //{ path:
+  // <P extends Paths, C extends Complete = Complete.Off>
+  // (path: P, complete?: C) => Endpoint<Response, C, P> }
   const apiReturnType = ts.createTypeLiteralNode([
-    ts.createPropertySignature(undefined, 'path', undefined, undefined, undefined)
+    ts.createPropertySignature(
+      undefined, // modifiers
+      pathName,
+      undefined, // questionToken
+      ts.createFunctionTypeNode(
+        [
+          ts.createTypeParameterDeclaration(
+            'P',
+            ts.createTypeReferenceNode(PathsName, []),
+            undefined,
+          ),
+          ts.createTypeParameterDeclaration(
+            'FR',
+            ts.createTypeReferenceNode(FullResponseOrNotName, []),
+            // TODO:
+            ts.createTypeReferenceNode(ts.createQualifiedName(ts.createIdentifier(FullResponseOrNotName), 'Not'), []),
+          ),
+        ],
+        [],
+        ts.createTypeReferenceNode(endpointDecl.name, [
+          // TODO:
+          ts.createTypeReferenceNode('Response', []),
+          ts.createTypeReferenceNode('FR', []),
+          ts.createTypeReferenceNode('P', []),
+        ]),
+      ),
+      undefined,
+    )
   ])
 
   return ts.createFunctionDeclaration(
@@ -241,12 +281,13 @@ export function createApiFunction(endpointDefs: { [path: string]: EndpointDef },
     'api',
     [
       engineHandlerTypeDecl,
-      responseTypeDecl
+      responseTypeDecl,
     ],
     [
-      hostParam
+      hostParam,
+      engineParam,
     ],
-    apiReturnType, // type
+    apiReturnType,
     ts.createBlock([
       pathDeclaration
     ]),

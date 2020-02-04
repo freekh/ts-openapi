@@ -1,1 +1,1 @@
-const a = '' as Endpoint<R>
+type A = C.Off

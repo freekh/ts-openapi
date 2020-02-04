@@ -2,7 +2,7 @@
 exports.__esModule = true;
 var ts = require("typescript");
 /*******************************************************
- * Various TS AST helpers to avoid messy code
+ * Various TS AST helpers to avoid (too) messy code
  *******************************************************/
 function delareTypeLiteralAlias(name, fields) {
     return ts.createTypeAliasDeclaration(undefined, undefined, name, undefined, ts.createTypeLiteralNode(Object.keys(fields).map(function (name) {
@@ -24,7 +24,6 @@ function declareStringLiteralUnion(name, values) {
 }
 exports.declareStringLiteralUnion = declareStringLiteralUnion;
 /**
- *
  * Example:
  * type ApiEndpoint<P extends Paths> =
  *   P extends '/string' ? { get(): string } :
@@ -44,11 +43,55 @@ function declareConditionalNeverType(name, typeParameterName, typeParameterConst
     }, ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword)));
 }
 exports.declareConditionalNeverType = declareConditionalNeverType;
-// export function createEndpointType(endpointDef: EndpointDef): ts.TypeLiteralNode {
-//   return ts.createTypeLiteralNode(Object.keys(endpointDef).map(method => {
-//     return 
-//   }))
-// }
-// export function createEndpointImplementation(endpointDef: EndpointDef): ts.Statement[] {
-//   return []
-// }
+function createEndpoint(endpointDef, createChild) {
+    return Object.keys(endpointDef).map(function (method) {
+        var methodImpl = endpointDef[method];
+        var params = Object.keys(methodImpl.parameters).map(function (param) { return ts.createParameter(undefined, undefined, undefined, param, undefined, methodImpl.parameters[param]); });
+        return createChild(method, params, methodImpl.returns);
+    });
+}
+function createEndpointType(endpointDef) {
+    return ts.createTypeLiteralNode(createEndpoint(endpointDef, function (method, params, type) {
+        return ts.createPropertySignature(undefined, method, undefined, ts.createFunctionTypeNode(undefined, params, type), undefined);
+    }));
+}
+exports.createEndpointType = createEndpointType;
+function declareType(name, node) {
+    return ts.createTypeAliasDeclaration(undefined, undefined, name, undefined, node);
+}
+exports.declareType = declareType;
+function createA() {
+    //  const engineHandler = engine.init(host)
+    return ts.createVariableStatement(undefined, ts.createVariableDeclarationList([
+        ts.createVariableDeclaration('a', undefined, ts.createCall(ts.createPropertyAccess(ts.createIdentifier('engine'), ts.createIdentifier('init')), undefined, [
+            ts.createIdentifier('host')
+        ]))
+    ]));
+}
+function createEndpointImplementation(endpointDef) {
+    return ts.createObjectLiteral(createEndpoint(endpointDef, function (method, params, type) {
+        return ts.createPropertyAssignment(method, ts.createArrowFunction(undefined, undefined, params, type, undefined, ts.createBlock([
+            createA()
+        ])));
+    }));
+}
+function createPaths(endpointDefs, endpointDecl) {
+    var pathTypeParam = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode('Paths', undefined));
+    var pathsTypeRef = ts.createTypeReferenceNode(pathTypeParam.name, undefined);
+    var pathParam = 'p';
+    var switchStmt = ts.createBlock([
+        ts.createSwitch(ts.createIdentifier(pathParam), ts.createCaseBlock(Object.keys(endpointDefs).map(function (path) {
+            return ts.createCaseClause(ts.createStringLiteral(path), [
+                ts.createStatement(createEndpointImplementation(endpointDefs[path]))
+            ]);
+        }).concat(ts.createDefaultClause([]))))
+    ]);
+    return ts.createArrowFunction(undefined, [pathTypeParam], [ts.createParameter(undefined, undefined, undefined, pathParam, undefined, pathsTypeRef)], ts.createTypeReferenceNode(endpointDecl.name, [pathsTypeRef]), undefined, switchStmt);
+}
+exports.createPaths = createPaths;
+function createPathFunction(endpointDefs, endpointDecl) {
+    return ts.createVariableStatement([], [
+        ts.createVariableDeclaration('path', undefined, createPaths(endpointDefs, endpointDecl))
+    ]);
+}
+exports.createPathFunction = createPathFunction;

@@ -60,7 +60,7 @@ function printStatements(statements) {
 // eslint-disable-next-line @typescript-eslint/require-await
 function genStatements(api) {
     return __awaiter(this, void 0, void 0, function () {
-        var typesStmts, p, pathsTypeStmt, endpointStmt;
+        var typesStmts, p, endpointDefSmt, pathsTypeStmt, endpointStmt, endpointImpl;
         return __generator(this, function (_a) {
             typesStmts = [
                 gen_ast_helpers_1.delareTypeLiteralAlias('hallo', {
@@ -70,20 +70,27 @@ function genStatements(api) {
             p = {
                 'get': {
                     parameters: { 'name': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
-                    returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
-                    body: []
+                    returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+                },
+                'post': {
+                    parameters: { 'name2': ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword) },
+                    returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
                 }
             };
+            endpointDefSmt = gen_ast_helpers_1.declareType('Test', gen_ast_helpers_1.createEndpointType(p));
             pathsTypeStmt = gen_ast_helpers_1.declareStringLiteralUnion('Paths', ['test', 'too']);
-            endpointStmt = gen_ast_helpers_1.declareConditionalNeverType('ApiEndpoint', 'P', pathsTypeStmt, ['test', 'too'].map(function (value) {
+            endpointStmt = gen_ast_helpers_1.declareConditionalNeverType('Endpoint', 'P', pathsTypeStmt, ['test', 'too'].map(function (value) {
                 return {
                     left: gen_ast_helpers_1.createStringLitralType(value),
                     right: gen_ast_helpers_1.createTypeRereference('hello')
                 };
             }));
+            endpointImpl = gen_ast_helpers_1.createPathFunction({ 'test1': p }, endpointStmt);
             return [2 /*return*/, __spreadArrays(typesStmts, [
                     pathsTypeStmt,
                     endpointStmt,
+                    endpointDefSmt,
+                    endpointImpl
                 ])];
         });
     });

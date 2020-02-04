@@ -78,7 +78,9 @@ const p = ts.createProgram({
   options: {
   }
 })
+// console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
+// console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
 console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
-console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
+console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)
 
 main(fs.readFileSync('./garbage/petstore.yml', 'utf8'))

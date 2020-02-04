@@ -20,7 +20,15 @@ const paths = ['/test1', '/test2']
 
 //---
 
-type CompleteResponse<R, T, H> = Promise<{ headers: H; statusCode: number; data: T; engineResponse: R; }>
+type SimpleEndpoint<E> = E extends { headers: infer H; statusCode: number; data: infer T; engineResponse: R; } ?
+  T : never
+
+type Test1CompleteEndpoint<R> = {
+  get: (id: string[]) => Promise<{ headers: object; data: Test1Response, engineResponse: R }>
+}
+type Test2CompleteEndpoint<R>2 = {
+  get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<{ headers: object; data: Test2Response, engineResponse: R }>
+}
 
 type Test1Endpoint<R> = {
   get: (id: string[]) => Promise<Test1Response>
@@ -29,13 +37,6 @@ type Test2Endpoint = {
   get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<Test2Response>
 }
 
-
-type Test1CompleteEndpoint<R> = {
-  get: (id: string[]) => Promise<{ headers: object; data: Test1Response }>
-}
-type Test2CompleteEndpoint = {
-  get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<{ headers: object; data: Test2Response }>
-}
 
 //---
 
@@ -63,7 +64,7 @@ enum Complete {
 
 interface Engine<EngineHandler, EngineResponse> {
   init(host: string): EngineHandler
-  handler(engine: EngineHandler): (method: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
+  handler(engine: EngineHandler): (method: string, responseType: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
   // TODO: encode
   // TODO: validate
   process<R>(response: EngineResponse): R
@@ -78,12 +79,12 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
         case '/test1':
           return {
             get: (id?: string[]) =>
-              engine.process(handle('get', p, { id, }))
+              engine.process(handle('get', 'application/json', p, { id, }))
           } as Endpoint<Response, C, P>
         case '/test2':
           return {
             get: (id?: string[], from?: string, to?: string, limit?: number) =>
-              engine.process(handle('get', p, { id, from , to, limit }))
+              engine.process(handle('get', 'application/json', p, { id, from , to, limit }))
           } as Endpoint<Response, C, P>
         default:
           return unknownPath(p)
@@ -93,12 +94,12 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
         case '/test1':
           return {
             get: (id?: string[]) =>
-              engine.process(handle('get', p, { id, }))
+              engine.process(handle('get', 'application/json', p, { id, }))
           } as Endpoint<Response, C, P>
         case '/test2':
           return {
             get: (id?: string[], from?: string, to?: string, limit?: number) =>
-              engine.process(handle('get', p, { id, from , to, limit }))
+              engine.process(handle('get', 'application/json', p, { id, from , to, limit }))
           } as Endpoint<Response, C, P>
         default:
           return unknownPath(p)
@@ -124,7 +125,7 @@ class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
   init(host: string): AxiosInstance {
     return axios.create(this.config)
   }
-  handler(engine: AxiosInstance): (method: string, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
+  handler(engine: AxiosInstance): (method: string, responseType: string, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
     engine.put
     throw new Error()
   }

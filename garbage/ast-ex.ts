@@ -1,1 +1,1 @@
-import a from './ng'
+const a = '' as Endpoint<R>

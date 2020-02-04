@@ -56,7 +56,7 @@ function unknownPath(path: Paths): never {
   throw Error(`Unknown path ${path}. Valid paths are: ${paths.join(',')}`)
 }
 
-// Or FullResponse or WithResponseData (full, data-only)
+// Or FullResponse or WithResponseData (full, data-only) or OnlyDataOrFullResponse
 enum Complete {
   On = "on",
   Off = "off",
@@ -64,7 +64,7 @@ enum Complete {
 
 interface Engine<EngineHandler, EngineResponse> {
   init(host: string): EngineHandler
-  handler(engine: EngineHandler): (method: string, responseType: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
+  handler(engine: EngineHandler): <A>(method: string, responseType: string, path: string, body?: A, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
   // TODO: encode
   // TODO: validate
   process<R>(response: EngineResponse): R
@@ -78,13 +78,13 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
       switch(p) {
         case '/test1':
           return {
-            get: (id?: string[]) =>
-              engine.process(handle('get', 'application/json', p, { id, }))
+            get: (id: string[]) =>
+              engine.process(handle('get', 'application/json', p, undefined, { id, }))
           } as Endpoint<Response, C, P>
         case '/test2':
           return {
             get: (id?: string[], from?: string, to?: string, limit?: number) =>
-              engine.process(handle('get', 'application/json', p, { id, from , to, limit }))
+              engine.process(handle('get', 'application/json', p, undefined, { id, from , to, limit }))
           } as Endpoint<Response, C, P>
         default:
           return unknownPath(p)
@@ -94,24 +94,25 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
         case '/test1':
           return {
             get: (id?: string[]) =>
-              engine.process(handle('get', 'application/json', p, { id, }))
+              engine.process(handle('get', 'application/json', p, undefined, { id, }))
           } as Endpoint<Response, C, P>
         case '/test2':
           return {
             get: (id?: string[], from?: string, to?: string, limit?: number) =>
-              engine.process(handle('get', 'application/json', p, { id, from , to, limit }))
+              engine.process(handle('get', 'application/json', p, undefined, { id, from , to, limit }))
           } as Endpoint<Response, C, P>
         default:
           return unknownPath(p)
       }
     }
   }
+  const methods = {
+    getTest1: (id: string[]): Promise<Test1Response> => {
+      return path('/test1', Complete.Off).get(id)
+    }
+  }
   return {
-    // methods: {
-    //   getTest1(id?: string[]) {
-    //     return path('/test1').get(id)
-    //   }
-    // },
+    methods,
     path,
   }
 }

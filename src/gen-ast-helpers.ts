@@ -1,10 +1,19 @@
-import * as ts from 'typescript';
+import * as ts from "typescript";
 
 /*******************************************************
  * Various TS AST helpers to avoid (too) messy code
  *******************************************************/
+const EndpointName = "Endpoint";
+const PathsName = "Paths";
+const OnlyBodyOrFullResponseShortName = "ObOrFr"
+const PathsShortName = "P"
+const ResponseTypeParameterName = "Response"
 
-export function delareTypeLiteralAlias(name: string, fields: { [name: string]: ts.TypeNode }): ts.TypeAliasDeclaration {
+
+export function delareTypeLiteralAlias(
+  name: string,
+  fields: { [name: string]: ts.TypeNode }
+): ts.TypeAliasDeclaration {
   return ts.createTypeAliasDeclaration(
     undefined,
     undefined,
@@ -13,57 +22,46 @@ export function delareTypeLiteralAlias(name: string, fields: { [name: string]: t
     ts.createTypeLiteralNode(
       Object.keys(fields).map(name => {
         const type = fields[name];
-        return ts.createPropertySignature(undefined, name, undefined, type, undefined)
+        return ts.createPropertySignature(
+          undefined,
+          name,
+          undefined,
+          type,
+          undefined
+        );
       })
     )
-  )
+  );
 }
 
 export function createStringLitralType(name: string): ts.LiteralTypeNode {
-  return ts.createLiteralTypeNode(ts.createStringLiteral(name))
+  return ts.createLiteralTypeNode(ts.createStringLiteral(name));
 }
 
-export function createTypeRereference(name: string): ts.TypeReferenceNode {
-  return ts.createTypeReferenceNode(name, undefined)
+export function createTypeReference(name: string): ts.TypeReferenceNode {
+  return ts.createTypeReferenceNode(name, undefined);
 }
 
-export function declareStringLiteralUnion(name: string, values: string[]): ts.TypeAliasDeclaration {
+function declareStringLiteralUnion(
+  name: string,
+  values: string[]
+): ts.TypeAliasDeclaration {
   return ts.createTypeAliasDeclaration(
     undefined,
     undefined,
     name,
     undefined,
     ts.createUnionTypeNode(values.map(createStringLitralType))
-  )
+  );
 }
 
-
-/**
- * Example:
- * type ApiEndpoint<P extends Paths> =
- *   P extends '/string' ? { get(): string } :
- *   P extends '/number' ? { get(): number} :
- *   never
- *
- * @param name
- * @param typeParameterName
- * @param typeParameterConstraint
- * @param conditionals
- */
-export function declareConditionalNeverType(name: string, typeParameterName: string, typeParameterConstraint: ts.TypeAliasDeclaration, conditionals: { left: ts.TypeNode; right: ts.TypeNode }[]): ts.TypeAliasDeclaration {
-  const typeParameterRef = createTypeRereference(typeParameterConstraint.name.text)
-  const typeParameter = ts.createTypeParameterDeclaration(typeParameterName, typeParameterRef)
-  return ts.createTypeAliasDeclaration(
-    undefined,
-    undefined,
-    name,
-    [typeParameter],
-    conditionals.reduce((prev, curr) => {
-      return ts.createConditionalTypeNode(createTypeRereference(typeParameterName), curr.left, curr.right, prev)
-    },
-      ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword) as ts.TypeNode
-    )
-  )
+function declareConditionalNeverType(
+  typeRef: ts.TypeReferenceNode,
+  conditionals: { left: ts.TypeNode; right: ts.TypeNode }[]
+): ts.TypeNode {
+  return conditionals.reduce((prev, curr) => {
+    return ts.createConditionalTypeNode(typeRef, curr.left, curr.right, prev);
+  }, ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword) as ts.TypeNode);
 }
 
 export type EndpointDef = {
@@ -72,38 +70,109 @@ export type EndpointDef = {
     responseType: string;
     returns: ts.TypeNode;
   };
-}
+};
 
-function createEndpoint<A>(endpointDef: EndpointDef, createChild: (method: string, responseType: string, params: ts.ParameterDeclaration[], returns: ts.TypeNode) => A): A[] {
+function createEndpoint<A>(
+  endpointDef: EndpointDef,
+  createChild: (
+    method: string,
+    responseType: string,
+    params: ts.ParameterDeclaration[],
+    returns: ts.TypeNode
+  ) => A
+): A[] {
   return Object.keys(endpointDef).map(method => {
-    const methodImpl = endpointDef[method]
-    const params = Object.keys(methodImpl.parameters).map(param => ts.createParameter(undefined, undefined, undefined, param, undefined, methodImpl.parameters[param]))
-    return createChild(method, methodImpl.responseType, params, methodImpl.returns)
-  })
-}
-
-export function createEndpointType(endpointDef: EndpointDef): ts.TypeLiteralNode {
-  return ts.createTypeLiteralNode(createEndpoint(endpointDef, (method, _, params, type) =>
-    ts.createPropertySignature(undefined, method, undefined,
-      ts.createFunctionTypeNode(undefined, params, type), undefined
-    )
-  ))
-}
-
-function createConstStatement(name: string, expr: ts.Expression): ts.VariableStatement {
-  return ts.createVariableStatement(undefined,
-    ts.createVariableDeclarationList([
-      ts.createVariableDeclaration(
-        name,
+    const methodImpl = endpointDef[method];
+    const params = Object.keys(methodImpl.parameters).map(param =>
+      ts.createParameter(
         undefined,
-        expr,
+        undefined,
+        undefined,
+        param,
+        undefined,
+        methodImpl.parameters[param]
       )
-    ], ts.NodeFlags.Const)
+    );
+    return createChild(
+      method,
+      methodImpl.responseType,
+      params,
+      methodImpl.returns
+    );
+  });
+}
+
+export function createPathsTypeAlias(): ts.TypeAliasDeclaration {
+  return declareStringLiteralUnion(PathsName, ["test", "too"]);
+}
+
+export function createOnlyBodyEndpointTypeNode(): ts.TypeNode {
+
+}
+
+export function createFullResponseEndpointTypeNode(): ts.TypeNode {
+
+}
+
+export function createEndpointTypeAlias(
+  tsGenIdentifier: ts.Identifier,
+  pathsTypeStmt: ts.TypeAliasDeclaration
+): ts.TypeAliasDeclaration {
+  
+  const typeParameters: ts.TypeParameterDeclaration[] = [
+    ts.createTypeParameterDeclaration(ResponseTypeParameterName)
+  ]
+
+  return ts.createTypeAliasDeclaration(
+    undefined,
+    undefined,
+    EndpointName,
+    typeParameters,
+    declareConditionalNeverType()
+    
   )
 }
 
-export function declareType(name: string, node: ts.TypeNode): ts.TypeAliasDeclaration {
-  return ts.createTypeAliasDeclaration(undefined, undefined, name, undefined, node)
+export function createEndpointTypeLiteral(
+  endpointDef: EndpointDef
+): ts.TypeLiteralNode {
+  return ts.createTypeLiteralNode(
+    createEndpoint(endpointDef, (method, _, params, type) =>
+      ts.createPropertySignature(
+        undefined,
+        method,
+        undefined,
+        ts.createFunctionTypeNode(undefined, params, type),
+        undefined
+      )
+    )
+  );
+}
+
+function createConstStatement(
+  name: string,
+  expr: ts.Expression
+): ts.VariableStatement {
+  return ts.createVariableStatement(
+    undefined,
+    ts.createVariableDeclarationList(
+      [ts.createVariableDeclaration(name, undefined, expr)],
+      ts.NodeFlags.Const
+    )
+  );
+}
+
+export function declareType(
+  name: string,
+  node: ts.TypeNode
+): ts.TypeAliasDeclaration {
+  return ts.createTypeAliasDeclaration(
+    undefined,
+    undefined,
+    name,
+    undefined,
+    node
+  );
 }
 
 function createEngineCall(
@@ -115,134 +184,189 @@ function createEngineCall(
   params: ts.ParameterDeclaration[]
 ): ts.Expression {
   // TODO: how to do filter & map with type narrowing?
-  const paramAssignments: ts.ShorthandPropertyAssignment[] = []
+  const paramAssignments: ts.ShorthandPropertyAssignment[] = [];
   params.forEach(p => {
     if (ts.isIdentifier(p.name)) {
-      paramAssignments.push(ts.createShorthandPropertyAssignment(p.name))
+      paramAssignments.push(ts.createShorthandPropertyAssignment(p.name));
     } else {
-      throw Error('Expected only identifiers here: ' + JSON.stringify(params))
+      throw Error("Expected only identifiers here: " + JSON.stringify(params));
     }
-  })
-  return ts.createCall(
-    engineProcess,
-    undefined,
-    [
-      ts.createCall(handleIdentifier, undefined, [
+  });
+  return ts.createCall(engineProcess, undefined, [
+    ts.createCall(
+      handleIdentifier,
+      undefined,
+      [
         ts.createStringLiteral(method) as ts.Expression,
-        ts.createStringLiteral(responseType)  as ts.Expression,
-        pathIdentifier as ts.Expression,
+        ts.createStringLiteral(responseType) as ts.Expression,
+        pathIdentifier as ts.Expression
       ].concat(ts.createObjectLiteral(paramAssignments))
-      )
-    ],
-  )
+    )
+  ]);
 }
 
-function convertTypeDeclarationToRef(node: ts.TypeParameterDeclaration): ts.TypeReferenceNode {
-  return ts.createTypeReferenceNode(node.name, undefined)
+function convertTypeDeclarationToRef(
+  node: ts.TypeParameterDeclaration
+): ts.TypeReferenceNode {
+  return ts.createTypeReferenceNode(node.name, undefined);
 }
 
-// TODO:
-const EndpointName = 'Endpoint'
-const PathsName = 'Paths'
-const FullResponseOrNotName = 'FullResponseOrNot'
 
 function createEndpointImplementation(
   engineProcess: ts.PropertyAccessExpression,
   handleIdentifier: ts.Identifier,
   endpointDef: EndpointDef,
   responseTypeRef: ts.TypeReferenceNode,
-  fullResponseOrNotTypeRef: ts.TypeReferenceNode,
+  onlyDataOrFullResponseTypeRef: ts.TypeReferenceNode,
   pathsTypeRef: ts.TypeReferenceNode,
-  pathIdentifier: ts.Identifier,
+  pathIdentifier: ts.Identifier
 ): ts.Expression {
-  return ts.createAsExpression(ts.createObjectLiteral(
-    createEndpoint(endpointDef, (method, responseType, params, type) =>
-      ts.createPropertyAssignment(method,
-        ts.createArrowFunction(undefined, undefined, params, type, undefined,
-          createEngineCall(
-            engineProcess,
-            handleIdentifier,
-            method,
-            responseType,
-            pathIdentifier,
-            params
+  return ts.createAsExpression(
+    ts.createObjectLiteral(
+      createEndpoint(endpointDef, (method, responseType, params, type) =>
+        ts.createPropertyAssignment(
+          method,
+          ts.createArrowFunction(
+            undefined,
+            undefined,
+            params,
+            type,
+            undefined,
+            createEngineCall(
+              engineProcess,
+              handleIdentifier,
+              method,
+              responseType,
+              pathIdentifier,
+              params
+            )
           )
         )
       )
-    )),
-    ts.createTypeReferenceNode(EndpointName, [responseTypeRef, fullResponseOrNotTypeRef, pathsTypeRef])
-  )
+    ),
+    ts.createTypeReferenceNode(EndpointName, [
+      responseTypeRef,
+      onlyDataOrFullResponseTypeRef,
+      pathsTypeRef
+    ])
+  );
 }
 
 export function createPaths(
   engineProcess: ts.PropertyAccessExpression,
   handleIdentifier: ts.Identifier,
   responseTypeRef: ts.TypeReferenceNode,
-  fullResponseOrNotTypeRef: ts.TypeReferenceNode,
+  onlyDataOrFullResponseTypeRef: ts.TypeReferenceNode,
   endpointDefs: { [path: string]: EndpointDef },
-  endpointDecl: ts.TypeAliasDeclaration,
+  endpointDecl: ts.TypeAliasDeclaration
 ): ts.ArrowFunction {
-  const pathTypeParam = ts.createTypeParameterDeclaration('P', ts.createTypeReferenceNode(PathsName, undefined))
-  const pathsTypeRef = convertTypeDeclarationToRef(pathTypeParam)
-  const pathIdentifier = ts.createIdentifier('p')
+  const pathTypeParam = ts.createTypeParameterDeclaration(
+    PathsShortName,
+    ts.createTypeReferenceNode(PathsName, undefined)
+  );
+  const pathsTypeRef = convertTypeDeclarationToRef(pathTypeParam);
+  const pathIdentifier = ts.createIdentifier(PathsShortName);
   const switchStmt = ts.createBlock([
-    ts.createSwitch(pathIdentifier, ts.createCaseBlock(
-      Object.keys(endpointDefs).map(path => {
-        return ts.createCaseClause(ts.createStringLiteral(path), [
-          ts.createStatement(createEndpointImplementation(
-            engineProcess,
-            handleIdentifier,
-            endpointDefs[path],
-            responseTypeRef,
-            fullResponseOrNotTypeRef,
-            pathsTypeRef,
-            pathIdentifier
-          ))
-        ]) as ts.CaseOrDefaultClause
-      }).concat(ts.createDefaultClause([]))
-    ))
-  ])
+    ts.createSwitch(
+      pathIdentifier,
+      ts.createCaseBlock(
+        Object.keys(endpointDefs)
+          .map(path => {
+            return ts.createCaseClause(ts.createStringLiteral(path), [
+              ts.createStatement(
+                createEndpointImplementation(
+                  engineProcess,
+                  handleIdentifier,
+                  endpointDefs[path],
+                  responseTypeRef,
+                  onlyDataOrFullResponseTypeRef,
+                  pathsTypeRef,
+                  pathIdentifier
+                )
+              )
+            ]) as ts.CaseOrDefaultClause;
+          })
+          .concat(ts.createDefaultClause([]))
+      )
+    )
+  ]);
   return ts.createArrowFunction(
     undefined,
     [pathTypeParam],
-    [ts.createParameter(undefined, undefined, undefined, pathIdentifier.text, undefined, pathsTypeRef)],
+    [
+      ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        pathIdentifier.text,
+        undefined,
+        pathsTypeRef
+      )
+    ],
     ts.createTypeReferenceNode(endpointDecl.name, [pathsTypeRef]),
     undefined,
     switchStmt
-  )
+  );
 }
 
-export function createApiFunction(endpointDefs: { [path: string]: EndpointDef }, endpointDecl: ts.TypeAliasDeclaration): ts.FunctionDeclaration {
+function onlyBodyOrFullResponseQN(engineId: ts.Identifier): ts.QualifiedName {
+  return ts.createQualifiedName(engineId, "OnlyBodyOrFullResponse");
+}
 
-  const engineHandlerTypeDecl =  ts.createTypeParameterDeclaration('EngineHandler')
-  const responseTypeDecl =  ts.createTypeParameterDeclaration('Response')
-  const fullResponseOrNotTypeDecl = ts.createTypeParameterDeclaration('FR')
+export function createApiFunction(
+  tsGenIdentifier: ts.Identifier,
+  endpointDefs: { [path: string]: EndpointDef },
+  endpointDecl: ts.TypeAliasDeclaration
+): ts.FunctionDeclaration {
+  const engineHandlerTypeDecl = ts.createTypeParameterDeclaration(
+    "EngineHandler"
+  );
+  const responseTypeDecl = ts.createTypeParameterDeclaration(ResponseTypeParameterName);
+  const onlyDataOrFullResponseTypeDecl = ts.createTypeParameterDeclaration(
+    OnlyBodyOrFullResponseShortName
+  );
 
-  const hostParam = ts.createParameter([], [], undefined, 'host', undefined, ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword))
-  const engineParam = ts.createParameter([], [], undefined, 'engine', undefined, ts.createTypeReferenceNode('Engine', [
-    convertTypeDeclarationToRef(engineHandlerTypeDecl),
-    convertTypeDeclarationToRef(responseTypeDecl),
-  ]))
+  const hostParam = ts.createParameter(
+    [],
+    [],
+    undefined,
+    "host",
+    undefined,
+    ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+  );
+  const engineParam = ts.createParameter(
+    [],
+    [],
+    undefined,
+    "engine",
+    undefined,
+    ts.createTypeReferenceNode(
+      // TODO: read from engine
+      ts.createQualifiedName(tsGenIdentifier, ts.createIdentifier("Engine")),
+      [
+        convertTypeDeclarationToRef(engineHandlerTypeDecl),
+        convertTypeDeclarationToRef(responseTypeDecl)
+      ]
+    )
+  );
 
-  const pathName = 'path'
+  const pathName = "path";
 
   const pathDeclaration = createConstStatement(
     pathName,
     createPaths(
+      // TODO: read from engine
       ts.createPropertyAccess(
-        ts.createIdentifier('engine'),
-        ts.createIdentifier('process')
+        ts.createIdentifier("engine"),
+        ts.createIdentifier("process")
       ),
-      ts.createIdentifier('handle'),
+      ts.createIdentifier("handle"),
       convertTypeDeclarationToRef(responseTypeDecl),
-      convertTypeDeclarationToRef(fullResponseOrNotTypeDecl),
+      convertTypeDeclarationToRef(onlyDataOrFullResponseTypeDecl),
       endpointDefs,
       endpointDecl
-    ),
-  )
-  //{ path:
-  // <P extends Paths, C extends Complete = Complete.Off>
-  // (path: P, complete?: C) => Endpoint<Response, C, P> }
+    )
+  );
   const apiReturnType = ts.createTypeLiteralNode([
     ts.createPropertySignature(
       undefined, // modifiers
@@ -251,45 +375,44 @@ export function createApiFunction(endpointDefs: { [path: string]: EndpointDef },
       ts.createFunctionTypeNode(
         [
           ts.createTypeParameterDeclaration(
-            'P',
+            PathsShortName,
             ts.createTypeReferenceNode(PathsName, []),
-            undefined,
+            undefined
           ),
           ts.createTypeParameterDeclaration(
-            'FR',
-            ts.createTypeReferenceNode(FullResponseOrNotName, []),
-            // TODO:
-            ts.createTypeReferenceNode(ts.createQualifiedName(ts.createIdentifier(FullResponseOrNotName), 'Not'), []),
-          ),
+            OnlyBodyOrFullResponseShortName,
+            ts.createTypeReferenceNode(
+              onlyBodyOrFullResponseQN(tsGenIdentifier),
+              []
+            ),
+            ts.createTypeReferenceNode(
+              ts.createQualifiedName(
+                onlyBodyOrFullResponseQN(tsGenIdentifier),
+                "OnlyBody" // TODO: read from engine
+              ),
+              []
+            )
+          )
         ],
         [],
         ts.createTypeReferenceNode(endpointDecl.name, [
-          // TODO:
-          ts.createTypeReferenceNode('Response', []),
-          ts.createTypeReferenceNode('FR', []),
-          ts.createTypeReferenceNode('P', []),
-        ]),
+          ts.createTypeReferenceNode(ResponseTypeParameterName, []),
+          ts.createTypeReferenceNode(OnlyBodyOrFullResponseShortName, []),
+          ts.createTypeReferenceNode(PathsShortName, [])
+        ])
       ),
-      undefined,
+      undefined
     )
-  ])
+  ]);
 
   return ts.createFunctionDeclaration(
     undefined, // decorators
     undefined, // modifiers
     undefined, // asteriskToken
-    'api',
-    [
-      engineHandlerTypeDecl,
-      responseTypeDecl,
-    ],
-    [
-      hostParam,
-      engineParam,
-    ],
+    "api",
+    [engineHandlerTypeDecl, responseTypeDecl],
+    [hostParam, engineParam],
     apiReturnType,
-    ts.createBlock([
-      pathDeclaration
-    ]),
-  )
+    ts.createBlock([pathDeclaration])
+  );
 }

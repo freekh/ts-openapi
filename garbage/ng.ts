@@ -20,33 +20,39 @@ const paths = ['/test1', '/test2']
 
 //---
 
-type SimpleEndpoint<E> = E extends { headers: infer H; statusCode: number; data: infer T; engineResponse: R; } ?
-  T : never
-
-type Test1CompleteEndpoint<R> = {
-  get: (id: string[]) => Promise<{ headers: object; data: Test1Response, engineResponse: R }>
-}
-type Test2CompleteEndpoint<R>2 = {
-  get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<{ headers: object; data: Test2Response, engineResponse: R }>
-}
-
-type Test1Endpoint<R> = {
-  get: (id: string[]) => Promise<Test1Response>
+type Test1Endpoint = {
+  get(id: string): Test1Response
 }
 type Test2Endpoint = {
-  get: (id?: string[], from?: string, to?: string, limit?: number) => Promise<Test2Response>
+  get(id?: string[], from?: string, to?: string, limit?: number): Test2Response
+}
+
+type PromiseOf<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<ReturnType<T>>;
+type FullResponseOf<Headers extends object, Response, T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<{ headers: Headers; data: ReturnType<T>, engineResponse: Response }>;
+
+type FunctionObject = {
+  [name: string]: (...args: any[]) => any
+};
+
+type OnlyBodyPromiseOf<U extends FunctionObject> = {
+  [N in keyof U]: PromiseOf<U[N]>
+}
+type EP<P, A> = GenericType<P, A>
+
+type FullResponsePromiseOf<T extends FunctionObject, Response, Headers extends object> = {
+  [P in keyof T]: FullResponseOf<Headers, Response, T[P]>
 }
 
 
 //---
 
 type Endpoint<R, C extends Complete, P extends Paths> = C extends Complete.Off ? (
-  P extends '/test1' ? Test1Endpoint<R> :
-  P extends '/test2' ? Test2Endpoint :
+  P extends '/test1' ? OnlyBodyPromiseOf<Test1Endpoint> :
+  P extends '/test2' ? OnlyBodyPromiseOf<Test2Endpoint> :
   never
 ) : C extends Complete.On ? (
-  P extends '/test1' ? Test1CompleteEndpoint<R> :
-  P extends '/test2' ? Test2CompleteEndpoint :
+  P extends '/test1' ? FullResponsePromiseOf<Test1Endpoint, R, { 'x-next': string; }> :
+  P extends '/test2' ? FullResponsePromiseOf<Test2Endpoint, R, { 'x-next': string; }> :
   never
 ) : never
 
@@ -64,7 +70,7 @@ enum Complete {
 
 interface Engine<EngineHandler, EngineResponse> {
   init(host: string): EngineHandler
-  handler(engine: EngineHandler): <A>(method: string, responseType: string, path: string, body?: A, params: object, queryParamsFormatter?: (queryParams: object) => string) => EngineResponse;
+  handler(engine: EngineHandler): <A>(method: string, responseType: string, path: string, params: object, queryParamsFormatter?: (queryParams: object) => string, body?: A) => EngineResponse;
   // TODO: encode
   // TODO: validate
   process<R>(response: EngineResponse): R
@@ -78,13 +84,13 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
       switch(p) {
         case '/test1':
           return {
-            get: (id: string[]) =>
-              engine.process(handle('get', 'application/json', p, undefined, { id, }))
+            get: (id: string) =>
+              engine.process(handle('get', 'application/json', p, { id, }))
           } as Endpoint<Response, C, P>
         case '/test2':
           return {
             get: (id?: string[], from?: string, to?: string, limit?: number) =>
-              engine.process(handle('get', 'application/json', p, undefined, { id, from , to, limit }))
+              engine.process(handle('get', 'application/json', p, { id, from , to, limit }))
           } as Endpoint<Response, C, P>
         default:
           return unknownPath(p)
@@ -93,32 +99,34 @@ function api<EngineHandler, Response>(host: string, engine: Engine<EngineHandler
       switch(p) {
         case '/test1':
           return {
-            get: (id?: string[]) =>
-              engine.process(handle('get', 'application/json', p, undefined, { id, }))
+            get: (id: string) =>
+              engine.process(handle('get', 'application/json', p, { id, }))
           } as Endpoint<Response, C, P>
         case '/test2':
           return {
             get: (id?: string[], from?: string, to?: string, limit?: number) =>
-              engine.process(handle('get', 'application/json', p, undefined, { id, from , to, limit }))
+              engine.process(handle('get', 'application/json', p, { id, from , to, limit }))
           } as Endpoint<Response, C, P>
         default:
           return unknownPath(p)
       }
     }
   }
-  const methods = {
-    getTest1: (id: string[]): Promise<Test1Response> => {
-      return path('/test1', Complete.Off).get(id)
-    }
-  }
+  // const methods = {
+  //   getTest1: (id: string[]): Promise<Test1Response> => {
+  //     return path('/test1', Complete.Off).get(id)
+  //   }
+  // }
   return {
-    methods,
     path,
   }
 }
 
 // //---
 class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
+  handler(engine: AxiosInstance): <A>(method: string, responseType: string, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined, body?: A | undefined) => AxiosResponse<any> {
+    throw new Error("Method not implemented.")
+  }
   private config?: AxiosRequestConfig
   constructor(config?: AxiosRequestConfig) {
     this.config = config;
@@ -126,17 +134,16 @@ class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
   init(host: string): AxiosInstance {
     return axios.create(this.config)
   }
-  handler(engine: AxiosInstance): (method: string, responseType: string, path: string, params: object, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse {
-    engine.put
-    throw new Error()
-  }
   process<R>(response: AxiosResponse): R {
     response.data
     throw new Error("Method not implemented.")
   }
 }
+// 
 
-api('test', new AxiosEngine()).path('/test1', Complete.On).get([])
+const a = api('http://localhost/server', new AxiosEngine())
+
+a.path('/test1', Complete.On).get('').then(d => d)
 
 
 export default api

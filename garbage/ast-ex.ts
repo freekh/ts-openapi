@@ -1,1 +1,1 @@
-type A = C.Off
+import * as tsgen from './tsgen-engine' 

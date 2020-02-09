@@ -4,19 +4,19 @@ type Endpoint<
   Response,
   OBFR extends tsgen.OnlyBodyOrFullResponse,
   P extends Paths
-> = OBFR extends tsgen.OnlyBodyOrFullResponse.FullResponse
+> = OBFR extends tsgen.OnlyBodyOrFullResponse.OnlyBody
   ? P extends '/test1'
-    ? FullResponsePromiseOf<{
+    ? tsgen.OnlyBodyPromiseOf<{
         get: (name: string) => string;
         post: (name2: string) => string;
       }>
     : never
-  : OBFR extends tsgen.OnlyBodyOrFullResponse.OnlyBody
+  : OBFR extends tsgen.OnlyBodyOrFullResponse.FullResponse
   ? P extends '/test1'
-    ? OnlyBodyPromiseOf<{
+    ? tsgen.FullResponsePromiseOf<{
         get: (name: string) => string;
         post: (name2: string) => string;
-      }>
+      }, Response, object>
     : never
   : never;
 function api<EngineHandler, Response>(

@@ -27,6 +27,21 @@ export enum OnlyBodyOrFullResponse {
   FullResponse = "full-response"
 }
 
+type PromiseOf<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<ReturnType<T>>;
+type FullResponseOf<Headers extends object, Response, T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<{ headers: Headers; data: ReturnType<T>, engineResponse: Response }>;
+
+type FunctionObject = {
+  [name: string]: (...args: any[]) => any
+};
+
+export type OnlyBodyPromiseOf<U extends FunctionObject> = {
+  [N in keyof U]: PromiseOf<U[N]>
+}
+
+export type FullResponsePromiseOf<T extends FunctionObject, Response, Headers extends object> = {
+  [P in keyof T]: FullResponseOf<Headers, Response, T[P]>
+}
+
 export function unknownPath<Paths>(paths: string[], path: Paths): never {
   throw Error(`Unknown path ${path}. Valid paths are: ${paths.join(",")}`);
 }

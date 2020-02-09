@@ -58,7 +58,7 @@ function declareConditionalNeverType(
   typeRef: ts.TypeReferenceNode,
   conditionals: { left: ts.TypeNode; right: ts.TypeNode }[]
 ): ts.TypeNode {
-  return conditionals.reduce((prev, curr) => {
+  return conditionals.reverse().reduce((prev, curr) => {
     return ts.createConditionalTypeNode(typeRef, curr.left, curr.right, prev);
   }, ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword) as ts.TypeNode);
 }
@@ -68,6 +68,7 @@ export type EndpointDef = {
     parameters: { [name: string]: ts.TypeNode };
     responseType: string;
     returns: ts.TypeNode;
+    returnHeaders?: ts.TypeNode;
   };
 };
 
@@ -107,8 +108,8 @@ export function createPathsTypeAlias(endpoints: {
   return declareStringLiteralUnion(PathsName, Object.keys(endpoints));
 }
 
-export function createEndpointTypeNode(
-  ofType: ts.Identifier | string,
+export function createOnlyBodyEndpointTypeNode(
+  tsGenIdentifier: ts.Identifier,
   endpoints: {
     [path: string]: EndpointDef;
   }
@@ -118,9 +119,48 @@ export function createEndpointTypeNode(
     Object.keys(endpoints).map(path => {
       return {
         left: createStringLitralType(path),
-        right: ts.createTypeReferenceNode(ofType, [
-          createEndpointTypeLiteral(endpoints[path])
-        ])
+        right: ts.createTypeReferenceNode(
+          // TODO: get from engine
+          ts.createQualifiedName(tsGenIdentifier, "OnlyBodyPromiseOf"),
+          [createEndpointTypeLiteral(endpoints[path])]
+        )
+      };
+    })
+  );
+}
+export function createFullResponseEndpointTypeNode(
+  tsGenIdentifier: ts.Identifier,
+  endpoints: {
+    [path: string]: EndpointDef;
+  },
+  responseTypeParameterName: string
+): ts.TypeNode {
+  return declareConditionalNeverType(
+    ts.createTypeReferenceNode(PathsShortName, undefined),
+    Object.keys(endpoints).map(path => {
+      let h: ts.TypeNode = ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword)
+      // HEADERs ma vare { get: HeaderGet, post: HeaderPost}
+      const a: {
+        parameters: { [name: string]: ts.TypeNode };
+        responseType: string;
+        returns: ts.TypeNode;
+        returnHeaders?: ts.TypeNode;
+      } = endpoints[path]
+      if (a.returnHeaders) {
+        h = a.returnHeaders
+      }
+
+      return {
+        left: createStringLitralType(path),
+        right: ts.createTypeReferenceNode(
+          // TODO: get from engine
+          ts.createQualifiedName(tsGenIdentifier, "FullResponsePromiseOf"),
+          [
+            createEndpointTypeLiteral(endpoints[path]),
+            ts.createTypeReferenceNode(responseTypeParameterName, undefined),
+            h
+          ]
+        )
       };
     })
   );
@@ -131,8 +171,9 @@ export function createEndpointTypeAlias(
   pathsTypeStmt: ts.TypeAliasDeclaration,
   endpoints: { [path: string]: EndpointDef }
 ): ts.TypeAliasDeclaration {
+  const responseTypeParameterName = ResponseTypeParameterName;
   const typeParameters: ts.TypeParameterDeclaration[] = [
-    ts.createTypeParameterDeclaration(ResponseTypeParameterName),
+    ts.createTypeParameterDeclaration(responseTypeParameterName),
     ts.createTypeParameterDeclaration(
       OnlyBodyOrFullResponseShortName,
       ts.createTypeReferenceNode(
@@ -159,14 +200,18 @@ export function createEndpointTypeAlias(
             onlyBodyQN(tsGenIdentifier),
             undefined
           ),
-          right: createEndpointTypeNode("OnlyBodyPromiseOf", endpoints)
+          right: createOnlyBodyEndpointTypeNode(tsGenIdentifier, endpoints)
         },
         {
           left: ts.createTypeReferenceNode(
             fullResponseQN(tsGenIdentifier),
             undefined
           ),
-          right: createEndpointTypeNode("FullResponsePromiseOf", endpoints)
+          right: createFullResponseEndpointTypeNode(
+            tsGenIdentifier,
+            endpoints,
+            responseTypeParameterName
+          )
         }
       ]
     )

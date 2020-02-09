@@ -45,6 +45,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
         name: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
       },
       responseType: "application/json",
+      returnHeaders: ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword),
       returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
     },
     post: {

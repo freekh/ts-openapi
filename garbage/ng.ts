@@ -37,7 +37,6 @@ type FunctionObject = {
 type OnlyBodyPromiseOf<U extends FunctionObject> = {
   [N in keyof U]: PromiseOf<U[N]>
 }
-type EP<P, A> = GenericType<P, A>
 
 type FullResponsePromiseOf<T extends FunctionObject, Response, Headers extends object> = {
   [P in keyof T]: FullResponseOf<Headers, Response, T[P]>
@@ -139,7 +138,7 @@ class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
     throw new Error("Method not implemented.")
   }
 }
-// 
+//
 
 const a = api('http://localhost/server', new AxiosEngine())
 

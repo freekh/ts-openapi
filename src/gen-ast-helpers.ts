@@ -5,10 +5,9 @@ import * as ts from "typescript";
  *******************************************************/
 const EndpointName = "Endpoint";
 const PathsName = "Paths";
-const OnlyBodyOrFullResponseShortName = "ObOrFr"
-const PathsShortName = "P"
-const ResponseTypeParameterName = "Response"
-
+const OnlyBodyOrFullResponseShortName = "OBFR";
+const PathsShortName = "P";
+const ResponseTypeParameterName = "Response";
 
 export function delareTypeLiteralAlias(
   name: string,
@@ -102,35 +101,76 @@ function createEndpoint<A>(
   });
 }
 
-export function createPathsTypeAlias(): ts.TypeAliasDeclaration {
-  return declareStringLiteralUnion(PathsName, ["test", "too"]);
+export function createPathsTypeAlias(endpoints: {
+  [path: string]: EndpointDef;
+}): ts.TypeAliasDeclaration {
+  return declareStringLiteralUnion(PathsName, Object.keys(endpoints));
 }
 
-export function createOnlyBodyEndpointTypeNode(): ts.TypeNode {
-
-}
-
-export function createFullResponseEndpointTypeNode(): ts.TypeNode {
-
+export function createEndpointTypeNode(
+  ofType: ts.Identifier | string,
+  endpoints: {
+    [path: string]: EndpointDef;
+  }
+): ts.TypeNode {
+  return declareConditionalNeverType(
+    ts.createTypeReferenceNode(PathsShortName, undefined),
+    Object.keys(endpoints).map(path => {
+      return {
+        left: createStringLitralType(path),
+        right: ts.createTypeReferenceNode(ofType, [
+          createEndpointTypeLiteral(endpoints[path])
+        ])
+      };
+    })
+  );
 }
 
 export function createEndpointTypeAlias(
   tsGenIdentifier: ts.Identifier,
-  pathsTypeStmt: ts.TypeAliasDeclaration
+  pathsTypeStmt: ts.TypeAliasDeclaration,
+  endpoints: { [path: string]: EndpointDef }
 ): ts.TypeAliasDeclaration {
-  
   const typeParameters: ts.TypeParameterDeclaration[] = [
-    ts.createTypeParameterDeclaration(ResponseTypeParameterName)
-  ]
+    ts.createTypeParameterDeclaration(ResponseTypeParameterName),
+    ts.createTypeParameterDeclaration(
+      OnlyBodyOrFullResponseShortName,
+      ts.createTypeReferenceNode(
+        onlyBodyOrFullResponseQN(tsGenIdentifier),
+        undefined
+      )
+    ),
+    ts.createTypeParameterDeclaration(
+      PathsShortName,
+      ts.createTypeReferenceNode(pathsTypeStmt.name, undefined)
+    )
+  ];
 
   return ts.createTypeAliasDeclaration(
     undefined,
     undefined,
     EndpointName,
     typeParameters,
-    declareConditionalNeverType()
-    
-  )
+    declareConditionalNeverType(
+      ts.createTypeReferenceNode(OnlyBodyOrFullResponseShortName, undefined),
+      [
+        {
+          left: ts.createTypeReferenceNode(
+            onlyBodyQN(tsGenIdentifier),
+            undefined
+          ),
+          right: createEndpointTypeNode("OnlyBodyPromiseOf", endpoints)
+        },
+        {
+          left: ts.createTypeReferenceNode(
+            fullResponseQN(tsGenIdentifier),
+            undefined
+          ),
+          right: createEndpointTypeNode("FullResponsePromiseOf", endpoints)
+        }
+      ]
+    )
+  );
 }
 
 export function createEndpointTypeLiteral(
@@ -210,7 +250,6 @@ function convertTypeDeclarationToRef(
 ): ts.TypeReferenceNode {
   return ts.createTypeReferenceNode(node.name, undefined);
 }
-
 
 function createEndpointImplementation(
   engineProcess: ts.PropertyAccessExpression,
@@ -313,6 +352,20 @@ function onlyBodyOrFullResponseQN(engineId: ts.Identifier): ts.QualifiedName {
   return ts.createQualifiedName(engineId, "OnlyBodyOrFullResponse");
 }
 
+function onlyBodyQN(engineId: ts.Identifier): ts.QualifiedName {
+  return ts.createQualifiedName(
+    onlyBodyOrFullResponseQN(engineId),
+    "OnlyBody" // TODO: read from engine
+  );
+}
+
+function fullResponseQN(engineId: ts.Identifier): ts.QualifiedName {
+  return ts.createQualifiedName(
+    onlyBodyOrFullResponseQN(engineId),
+    "FullResponse" // TODO: read from engine
+  );
+}
+
 export function createApiFunction(
   tsGenIdentifier: ts.Identifier,
   endpointDefs: { [path: string]: EndpointDef },
@@ -321,7 +374,9 @@ export function createApiFunction(
   const engineHandlerTypeDecl = ts.createTypeParameterDeclaration(
     "EngineHandler"
   );
-  const responseTypeDecl = ts.createTypeParameterDeclaration(ResponseTypeParameterName);
+  const responseTypeDecl = ts.createTypeParameterDeclaration(
+    ResponseTypeParameterName
+  );
   const onlyDataOrFullResponseTypeDecl = ts.createTypeParameterDeclaration(
     OnlyBodyOrFullResponseShortName
   );
@@ -385,13 +440,7 @@ export function createApiFunction(
               onlyBodyOrFullResponseQN(tsGenIdentifier),
               []
             ),
-            ts.createTypeReferenceNode(
-              ts.createQualifiedName(
-                onlyBodyOrFullResponseQN(tsGenIdentifier),
-                "OnlyBody" // TODO: read from engine
-              ),
-              []
-            )
+            ts.createTypeReferenceNode(onlyBodyQN(tsGenIdentifier), [])
           )
         ],
         [],

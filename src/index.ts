@@ -39,11 +39,6 @@ function printStatements(statements: ts.Statement[]): string {
 
 // eslint-disable-next-line @typescript-eslint/require-await
 async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
-  const typesStmts: ts.Statement[] = [
-    delareTypeLiteralAlias("hallo", {
-      test: ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-    })
-  ];
   const p: EndpointDef = {
     get: {
       parameters: {
@@ -60,10 +55,12 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
       returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
     }
   };
-  const endpointDefSmt = declareType("Test", createEndpointTypeLiteral(p));
-  const pathsTypeStmt = createPathsTypeAlias();
+  const endpoints =  {
+    '/test1': p
+  }
+  const pathsTypeStmt = createPathsTypeAlias(endpoints);
   const tsGenIdentifier = ts.createIdentifier("tsgen");
-  const endpointStmt = createEndpointTypeAlias(tsGenIdentifier, pathsTypeStmt);
+  const endpointStmt = createEndpointTypeAlias(tsGenIdentifier, pathsTypeStmt, endpoints);
   const importStmts = [
     ts.createImportDeclaration(
       undefined,
@@ -83,10 +80,8 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
 
   return [
     ...importStmts,
-    ...typesStmts,
     pathsTypeStmt as ts.Statement,
     endpointStmt as ts.Statement,
-    endpointDefSmt as ts.Statement,
     endpointImpl as ts.Statement
   ];
 }

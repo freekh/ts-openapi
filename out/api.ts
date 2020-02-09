@@ -1,33 +1,43 @@
 import * as tsgen from './engine';
-type hallo = {
-  test: number;
-};
-type Paths = 'test' | 'too';
-type Endpoint<P extends Paths> = P extends 'too' ? hallo : P extends 'test' ? hallo : never;
-type Test = {
-  get: (name: string) => string;
-  post: (name2: string) => string;
-};
+type Paths = '/test1';
+type Endpoint<
+  Response,
+  OBFR extends tsgen.OnlyBodyOrFullResponse,
+  P extends Paths
+> = OBFR extends tsgen.OnlyBodyOrFullResponse.FullResponse
+  ? P extends '/test1'
+    ? FullResponsePromiseOf<{
+        get: (name: string) => string;
+        post: (name2: string) => string;
+      }>
+    : never
+  : OBFR extends tsgen.OnlyBodyOrFullResponse.OnlyBody
+  ? P extends '/test1'
+    ? OnlyBodyPromiseOf<{
+        get: (name: string) => string;
+        post: (name2: string) => string;
+      }>
+    : never
+  : never;
 function api<EngineHandler, Response>(
   host: string,
   engine: tsgen.Engine<EngineHandler, Response>
 ): {
   path: <
     P extends Paths,
-    OdOrFr extends tsgen.OnlyBodyOrFullResponse = tsgen.OnlyBodyOrFullResponse.OnlyData
-  >() => Endpoint<Response, OdOrFr, P>;
+    OBFR extends tsgen.OnlyBodyOrFullResponse = tsgen.OnlyBodyOrFullResponse.OnlyBody
+  >() => Endpoint<Response, OBFR, P>;
 } {
-  const path = <P extends Paths>(p: P): Endpoint<P> => {
-    switch (p) {
+  const path = <P extends Paths>(P: P): Endpoint<P> => {
+    switch (P) {
       case 'test1':
         ({
           get: (name: string): string =>
-            engine.process(handle('get', 'application/json', p, { name })),
+            engine.process(handle('get', 'application/json', P, { name })),
           post: (name2: string): string =>
-            engine.process(handle('post', 'application/json', p, { name2 })),
-        } as Endpoint<Response, ODorFR, P>);
+            engine.process(handle('post', 'application/json', P, { name2 })),
+        } as Endpoint<Response, OBFR, P>);
       default:
     }
   };
-  throw new Error("")
 }

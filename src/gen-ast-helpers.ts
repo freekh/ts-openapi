@@ -6,8 +6,12 @@ import * as ts from "typescript";
 const EndpointName = "Endpoint";
 const PathsName = "Paths";
 const OnlyBodyOrFullResponseShortName = "OBFR";
-const PathsShortName = "P";
+const PathsTypeShortName = "P";
+const PathsVariableShortName = "p";
 const ResponseTypeParameterName = "Response";
+const OnlyBodyOrFullResponseName = "OnlyBodyOrFullResponse";
+const OnlyBodyName = "OnlyBody";
+const AllPathsName = "allPaths";
 
 export function delareTypeLiteralAlias(
   name: string,
@@ -115,15 +119,11 @@ export function createOnlyBodyEndpointTypeNode(
   }
 ): ts.TypeNode {
   return declareConditionalNeverType(
-    ts.createTypeReferenceNode(PathsShortName, undefined),
+    ts.createTypeReferenceNode(PathsTypeShortName, undefined),
     Object.keys(endpoints).map(path => {
       return {
         left: createStringLitralType(path),
-        right: ts.createTypeReferenceNode(
-          // TODO: get from engine
-          ts.createQualifiedName(tsGenIdentifier, "OnlyBodyPromiseOf"),
-          [createEndpointTypeLiteral(endpoints[path])]
-        )
+        right: createOnlyBodyEndpointTypeLiteral(endpoints[path])
       };
     })
   );
@@ -136,31 +136,11 @@ export function createFullResponseEndpointTypeNode(
   responseTypeParameterName: string
 ): ts.TypeNode {
   return declareConditionalNeverType(
-    ts.createTypeReferenceNode(PathsShortName, undefined),
+    ts.createTypeReferenceNode(PathsTypeShortName, undefined),
     Object.keys(endpoints).map(path => {
-      let h: ts.TypeNode = ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword)
-      // HEADERs ma vare { get: HeaderGet, post: HeaderPost}
-      const a: {
-        parameters: { [name: string]: ts.TypeNode };
-        responseType: string;
-        returns: ts.TypeNode;
-        returnHeaders?: ts.TypeNode;
-      } = endpoints[path]
-      if (a.returnHeaders) {
-        h = a.returnHeaders
-      }
-
       return {
         left: createStringLitralType(path),
-        right: ts.createTypeReferenceNode(
-          // TODO: get from engine
-          ts.createQualifiedName(tsGenIdentifier, "FullResponsePromiseOf"),
-          [
-            createEndpointTypeLiteral(endpoints[path]),
-            ts.createTypeReferenceNode(responseTypeParameterName, undefined),
-            h
-          ]
-        )
+        right: createFullResponseEndpointTypeLiteral(endpoints[path])
       };
     })
   );
@@ -182,7 +162,7 @@ export function createEndpointTypeAlias(
       )
     ),
     ts.createTypeParameterDeclaration(
-      PathsShortName,
+      PathsTypeShortName,
       ts.createTypeReferenceNode(pathsTypeStmt.name, undefined)
     )
   ];
@@ -218,7 +198,15 @@ export function createEndpointTypeAlias(
   );
 }
 
-export function createEndpointTypeLiteral(
+function promiseOf(type: ts.TypeNode): ts.TypeReferenceNode {
+  return ts.createTypeReferenceNode("Promise", [type]);
+}
+
+function onlyBodyType(type: ts.TypeNode): ts.TypeNode {
+  return promiseOf(type);
+}
+
+export function createOnlyBodyEndpointTypeLiteral(
   endpointDef: EndpointDef
 ): ts.TypeLiteralNode {
   return ts.createTypeLiteralNode(
@@ -227,7 +215,72 @@ export function createEndpointTypeLiteral(
         undefined,
         method,
         undefined,
-        ts.createFunctionTypeNode(undefined, params, type),
+        ts.createFunctionTypeNode(undefined, params, onlyBodyType(type)),
+        undefined
+      )
+    )
+  );
+}
+
+function fullResponseType(
+  type: ts.TypeNode,
+  returnHeaders?: ts.TypeNode
+): ts.TypeNode {
+  const headerPS = returnHeaders
+    ? [
+        ts.createPropertySignature(
+          undefined,
+          "headers",
+          undefined,
+          returnHeaders,
+          undefined
+        )
+      ]
+    : [
+        ts.createPropertySignature(
+          undefined,
+          "headers",
+          undefined,
+          ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword),
+          undefined
+        )
+      ];
+  return promiseOf(
+    ts.createTypeLiteralNode(
+      [
+        ts.createPropertySignature(
+          undefined,
+          "response",
+          undefined,
+          ts.createTypeReferenceNode(ResponseTypeParameterName, []),
+          undefined
+        ),
+        ts.createPropertySignature(
+          undefined,
+          "data",
+          undefined,
+          type,
+          undefined
+        )
+      ].concat(headerPS)
+    )
+  );
+}
+
+export function createFullResponseEndpointTypeLiteral(
+  endpointDef: EndpointDef
+): ts.TypeLiteralNode {
+  return ts.createTypeLiteralNode(
+    createEndpoint(endpointDef, (method, _, params, type) =>
+      ts.createPropertySignature(
+        undefined,
+        method,
+        undefined,
+        ts.createFunctionTypeNode(
+          undefined,
+          params,
+          fullResponseType(type, endpointDef[method].returnHeaders)
+        ),
         undefined
       )
     )
@@ -335,9 +388,9 @@ function createEndpointImplementation(
     ])
   );
 }
-
 export function createPaths(
   engineProcess: ts.PropertyAccessExpression,
+  tsGenIdentifier: ts.Identifier,
   handleIdentifier: ts.Identifier,
   responseTypeRef: ts.TypeReferenceNode,
   onlyDataOrFullResponseTypeRef: ts.TypeReferenceNode,
@@ -345,11 +398,18 @@ export function createPaths(
   endpointDecl: ts.TypeAliasDeclaration
 ): ts.ArrowFunction {
   const pathTypeParam = ts.createTypeParameterDeclaration(
-    PathsShortName,
+    PathsTypeShortName,
     ts.createTypeReferenceNode(PathsName, undefined)
   );
+  const obfrTypeParam = ts.createTypeParameterDeclaration(
+    OnlyBodyOrFullResponseShortName,
+    ts.createTypeReferenceNode(
+      onlyBodyOrFullResponseQN(tsGenIdentifier),
+      undefined
+    )
+  );
   const pathsTypeRef = convertTypeDeclarationToRef(pathTypeParam);
-  const pathIdentifier = ts.createIdentifier(PathsShortName);
+  const pathIdentifier = ts.createIdentifier(PathsVariableShortName);
   const switchStmt = ts.createBlock([
     ts.createSwitch(
       pathIdentifier,
@@ -370,13 +430,26 @@ export function createPaths(
               )
             ]) as ts.CaseOrDefaultClause;
           })
-          .concat(ts.createDefaultClause([]))
+          .concat(
+            ts.createDefaultClause([
+              ts.createExpressionStatement(
+                ts.createCall(
+                  ts.createPropertyAccess(tsGenIdentifier, "unknownPath"),
+                  undefined,
+                  [
+                    ts.createIdentifier(PathsTypeShortName),
+                    ts.createIdentifier(AllPathsName)
+                  ]
+                )
+              )
+            ])
+          )
       )
     )
   ]);
   return ts.createArrowFunction(
     undefined,
-    [pathTypeParam],
+    [pathTypeParam, obfrTypeParam],
     [
       ts.createParameter(
         undefined,
@@ -385,22 +458,42 @@ export function createPaths(
         pathIdentifier.text,
         undefined,
         pathsTypeRef
+      ),
+      ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        "onlyBodyOrFullResponse",
+        undefined,
+        ts.createTypeReferenceNode(
+          onlyBodyOrFullResponseQN(tsGenIdentifier),
+          undefined
+        ),
+        // TODO: is this or the QualifiedName the right way of accessing OnlyBody
+        ts.createPropertyAccess(
+          ts.createPropertyAccess(tsGenIdentifier, OnlyBodyOrFullResponseName),
+          OnlyBodyName
+        )
       )
     ],
-    ts.createTypeReferenceNode(endpointDecl.name, [pathsTypeRef]),
+    ts.createTypeReferenceNode(endpointDecl.name, [
+      ts.createTypeReferenceNode(ResponseTypeParameterName, undefined),
+      ts.createTypeReferenceNode(OnlyBodyOrFullResponseShortName, undefined),
+      pathsTypeRef
+    ]),
     undefined,
     switchStmt
   );
 }
 
 function onlyBodyOrFullResponseQN(engineId: ts.Identifier): ts.QualifiedName {
-  return ts.createQualifiedName(engineId, "OnlyBodyOrFullResponse");
+  return ts.createQualifiedName(engineId, OnlyBodyOrFullResponseName);
 }
 
 function onlyBodyQN(engineId: ts.Identifier): ts.QualifiedName {
   return ts.createQualifiedName(
     onlyBodyOrFullResponseQN(engineId),
-    "OnlyBody" // TODO: read from engine
+    OnlyBodyName // TODO: read from engine
   );
 }
 
@@ -460,6 +553,7 @@ export function createApiFunction(
         ts.createIdentifier("engine"),
         ts.createIdentifier("process")
       ),
+      tsGenIdentifier,
       ts.createIdentifier("handle"),
       convertTypeDeclarationToRef(responseTypeDecl),
       convertTypeDeclarationToRef(onlyDataOrFullResponseTypeDecl),
@@ -475,7 +569,7 @@ export function createApiFunction(
       ts.createFunctionTypeNode(
         [
           ts.createTypeParameterDeclaration(
-            PathsShortName,
+            PathsTypeShortName,
             ts.createTypeReferenceNode(PathsName, []),
             undefined
           ),
@@ -492,12 +586,31 @@ export function createApiFunction(
         ts.createTypeReferenceNode(endpointDecl.name, [
           ts.createTypeReferenceNode(ResponseTypeParameterName, []),
           ts.createTypeReferenceNode(OnlyBodyOrFullResponseShortName, []),
-          ts.createTypeReferenceNode(PathsShortName, [])
+          ts.createTypeReferenceNode(PathsTypeShortName, [])
         ])
       ),
       undefined
     )
   ]);
+
+  const engineHandlerName = "engineHandler";
+  const engineHandlerDeclaration = createConstStatement(
+    engineHandlerName,
+    ts.createCall(
+      ts.createPropertyAccess(ts.createIdentifier("engine"), "init"),
+      [],
+      [ts.createIdentifier("host")]
+    )
+  );
+
+  const handleDeclaration = createConstStatement(
+    "handler",
+    ts.createCall(
+      ts.createPropertyAccess(ts.createIdentifier("engine"), "handler"),
+      [],
+      [ts.createIdentifier(engineHandlerName)]
+    )
+  );
 
   return ts.createFunctionDeclaration(
     undefined, // decorators
@@ -507,6 +620,15 @@ export function createApiFunction(
     [engineHandlerTypeDecl, responseTypeDecl],
     [hostParam, engineParam],
     apiReturnType,
-    ts.createBlock([pathDeclaration])
+    ts.createBlock([
+      engineHandlerDeclaration,
+      handleDeclaration,
+      pathDeclaration,
+      ts.createReturn(
+        ts.createObjectLiteral([
+          ts.createPropertyAssignment(pathName, ts.createIdentifier(pathName))
+        ])
+      )
+    ])
   );
 }

@@ -8,7 +8,6 @@ import {
   declareType,
   createApiFunction,
   createEndpointTypeAlias,
-  createEndpointTypeLiteral,
   createPathsTypeAlias
 } from "./gen-ast-helpers";
 import * as prettier from "prettier";
@@ -101,7 +100,7 @@ const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],
   options: {}
 });
-console.log(p.getSourceFile("garbage/ast-ex.ts")?.statements[0] as any);
+// console.log(p.getSourceFile("garbage/ast-ex.ts")?.statements[0] as any);
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)

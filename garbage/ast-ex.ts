@@ -1,1 +1,2 @@
-import * as tsgen from './tsgen-engine' 
+const c = 1
+function a(b: number = c) {}

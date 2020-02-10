@@ -6,17 +6,29 @@ type Endpoint<
   P extends Paths
 > = OBFR extends tsgen.OnlyBodyOrFullResponse.OnlyBody
   ? P extends '/test1'
-    ? tsgen.OnlyBodyPromiseOf<{
-        get: (name: string) => string;
-        post: (name2: string) => string;
-      }>
+    ? {
+        get: (name: string) => Promise<string>;
+        post: (name2: string) => Promise<string>;
+      }
     : never
   : OBFR extends tsgen.OnlyBodyOrFullResponse.FullResponse
   ? P extends '/test1'
-    ? tsgen.FullResponsePromiseOf<{
-        get: (name: string) => string;
-        post: (name2: string) => string;
-      }, Response, object>
+    ? {
+        get: (
+          name: string
+        ) => Promise<{
+          response: Response;
+          data: string;
+          headers: object;
+        }>;
+        post: (
+          name2: string
+        ) => Promise<{
+          response: Response;
+          data: string;
+          headers: object;
+        }>;
+      }
     : never
   : never;
 function api<EngineHandler, Response>(
@@ -28,16 +40,23 @@ function api<EngineHandler, Response>(
     OBFR extends tsgen.OnlyBodyOrFullResponse = tsgen.OnlyBodyOrFullResponse.OnlyBody
   >() => Endpoint<Response, OBFR, P>;
 } {
-  const path = <P extends Paths>(P: P): Endpoint<P> => {
-    switch (P) {
+  const engineHandler = engine.init(host);
+  const handler = engine.handler(engineHandler);
+  const path = <P extends Paths, OBFR extends tsgen.OnlyBodyOrFullResponse>(
+    p: P,
+    onlyBodyOrFullResponse: tsgen.OnlyBodyOrFullResponse = tsgen.OnlyBodyOrFullResponse.OnlyBody
+  ): Endpoint<Response, OBFR, P> => {
+    switch (p) {
       case 'test1':
         ({
           get: (name: string): string =>
-            engine.process(handle('get', 'application/json', P, { name })),
+            engine.process(handle('get', 'application/json', p, { name })),
           post: (name2: string): string =>
-            engine.process(handle('post', 'application/json', P, { name2 })),
+            engine.process(handle('post', 'application/json', p, { name2 })),
         } as Endpoint<Response, OBFR, P>);
       default:
+        tsgen.unknownPath(P, allPaths);
     }
   };
+  return { path: path };
 }

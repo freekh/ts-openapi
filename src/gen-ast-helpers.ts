@@ -52,7 +52,7 @@ function declareStringLiteralUnion(
 ): ts.TypeAliasDeclaration {
   return ts.createTypeAliasDeclaration(
     undefined,
-    undefined,
+    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Export),
     name,
     undefined,
     ts.createUnionTypeNode(values.map(createStringLitralType))
@@ -170,7 +170,7 @@ export function createEndpointTypeAlias(
 
   return ts.createTypeAliasDeclaration(
     undefined,
-    undefined,
+    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Export),
     EndpointName,
     typeParameters,
     declareConditionalNeverType(
@@ -401,52 +401,11 @@ export function createPaths(
   endpointDefs: { [path: string]: EndpointDef },
   endpointDecl: ts.TypeAliasDeclaration
 ): ts.ArrowFunction {
-  function switchStmt(onlyBody: boolean) {
-    return ts.createBlock([
-      ts.createSwitch(
-        pathIdentifier,
-        ts.createCaseBlock(
-          Object.keys(endpointDefs)
-            .map(path => {
-              return ts.createCaseClause(ts.createStringLiteral(path), [
-                ts.createStatement(
-                  createEndpointImplementation(
-                    engineProcess,
-                    handleIdentifier,
-                    endpointDefs[path],
-                    responseTypeRef,
-                    onlyBody,
-                    onlyDataOrFullResponseTypeRef,
-                    pathsTypeRef,
-                    pathIdentifier
-                  )
-                )
-              ]) as ts.CaseOrDefaultClause;
-            })
-            .concat(
-              ts.createDefaultClause([
-                ts.createExpressionStatement(
-                  ts.createCall(
-                    ts.createPropertyAccess(tsGenIdentifier, "unknownPath"),
-                    undefined,
-                    [
-                      ts.createIdentifier(AllPathsName),
-                      ts.createIdentifier(PathsVariableShortName)
-                    ]
-                  )
-                )
-              ])
-            )
-        )
-      )
-    ]);
-  }
   // TODO: is this or the QualifiedName the right way of accessing OnlyBody
   const onlyBodyProperty = ts.createPropertyAccess(
     ts.createPropertyAccess(tsGenIdentifier, OnlyBodyOrFullResponseName),
     OnlyBodyName
-  )
-  const switchStmts = ts.createIf(ts.createStrictEquality(ts.createIdentifier(OnlyBodyOrFullResponseParamName), onlyBodyProperty), switchStmt(true), switchStmt(false))
+  );
   const pathTypeParam = ts.createTypeParameterDeclaration(
     PathsTypeShortName,
     ts.createTypeReferenceNode(PathsName, undefined)
@@ -460,6 +419,53 @@ export function createPaths(
   );
   const pathsTypeRef = convertTypeDeclarationToRef(pathTypeParam);
   const pathIdentifier = ts.createIdentifier(PathsVariableShortName);
+
+  function switchStmt(onlyBody: boolean) {
+    return ts.createSwitch(
+      pathIdentifier,
+      ts.createCaseBlock(
+        Object.keys(endpointDefs)
+          .map(path => {
+            return ts.createCaseClause(ts.createStringLiteral(path), [
+              ts.createReturn(
+                createEndpointImplementation(
+                  engineProcess,
+                  handleIdentifier,
+                  endpointDefs[path],
+                  responseTypeRef,
+                  onlyBody,
+                  onlyDataOrFullResponseTypeRef,
+                  pathsTypeRef,
+                  pathIdentifier
+                )
+              )
+            ]) as ts.CaseOrDefaultClause;
+          })
+          .concat(
+            ts.createDefaultClause([
+              ts.createReturn(
+                ts.createCall(
+                  ts.createPropertyAccess(tsGenIdentifier, "unknownPath"),
+                  undefined,
+                  [
+                    ts.createIdentifier(AllPathsName),
+                    ts.createIdentifier(PathsVariableShortName)
+                  ]
+                )
+              )
+            ])
+          )
+      )
+    );
+  }
+  const switchStmts = ts.createIf(
+    ts.createStrictEquality(
+      ts.createIdentifier(OnlyBodyOrFullResponseParamName),
+      onlyBodyProperty
+    ),
+    switchStmt(true),
+    switchStmt(false)
+  );
   return ts.createArrowFunction(
     undefined,
     [pathTypeParam, obfrTypeParam],
@@ -664,15 +670,21 @@ export function createApiFunction(
 export function createAllPathsVariable(endpointDefs: {
   [path: string]: EndpointDef;
 }): ts.VariableStatement {
-  return ts.createVariableStatement(undefined, [
-    ts.createVariableDeclaration(
-      AllPathsName,
-      undefined,
-      ts.createArrayLiteral(
-        Object.keys(endpointDefs).map(path => {
-          return ts.createStringLiteral(path);
-        })
-      )
+  return ts.createVariableStatement(
+    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Export),
+    ts.createVariableDeclarationList(
+      [
+        ts.createVariableDeclaration(
+          AllPathsName,
+          undefined,
+          ts.createArrayLiteral(
+            Object.keys(endpointDefs).map(path => {
+              return ts.createStringLiteral(path);
+            })
+          )
+        )
+      ],
+      ts.NodeFlags.Const
     )
-  ]);
+  );
 }

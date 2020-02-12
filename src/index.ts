@@ -8,7 +8,8 @@ import {
   declareType,
   createApiFunction,
   createEndpointTypeAlias,
-  createPathsTypeAlias
+  createPathsTypeAlias,
+  createAllPathsVariable
 } from "./gen-ast-helpers";
 import * as prettier from "prettier";
 
@@ -56,10 +57,11 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
     }
   };
   const endpoints =  {
-    '/test1': p
+    '/test2': p
   }
   const pathsTypeStmt = createPathsTypeAlias(endpoints);
   const tsGenIdentifier = ts.createIdentifier("tsgen");
+  const allPathsStmt = createAllPathsVariable(endpoints);
   const endpointStmt = createEndpointTypeAlias(tsGenIdentifier, pathsTypeStmt, endpoints);
   const importStmts = [
     ts.createImportDeclaration(
@@ -80,6 +82,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
 
   return [
     ...importStmts,
+    allPathsStmt as ts.Statement,
     pathsTypeStmt as ts.Statement,
     endpointStmt as ts.Statement,
     endpointImpl as ts.Statement

@@ -12,6 +12,7 @@ const ResponseTypeParameterName = "Response";
 const OnlyBodyOrFullResponseName = "OnlyBodyOrFullResponse";
 const OnlyBodyName = "OnlyBody";
 const AllPathsName = "allPaths";
+const OnlyBodyOrFullResponseParamName = "onlyBodyOrFullResponse";
 
 export function delareTypeLiteralAlias(
   name: string,
@@ -354,6 +355,7 @@ function createEndpointImplementation(
   handleIdentifier: ts.Identifier,
   endpointDef: EndpointDef,
   responseTypeRef: ts.TypeReferenceNode,
+  onlyBody: boolean,
   onlyDataOrFullResponseTypeRef: ts.TypeReferenceNode,
   pathsTypeRef: ts.TypeReferenceNode,
   pathIdentifier: ts.Identifier
@@ -367,7 +369,9 @@ function createEndpointImplementation(
             undefined,
             undefined,
             params,
-            type,
+            onlyBody
+              ? onlyBodyType(type)
+              : fullResponseType(type, endpointDef[method].returnHeaders),
             undefined,
             createEngineCall(
               engineProcess,
@@ -397,6 +401,52 @@ export function createPaths(
   endpointDefs: { [path: string]: EndpointDef },
   endpointDecl: ts.TypeAliasDeclaration
 ): ts.ArrowFunction {
+  function switchStmt(onlyBody: boolean) {
+    return ts.createBlock([
+      ts.createSwitch(
+        pathIdentifier,
+        ts.createCaseBlock(
+          Object.keys(endpointDefs)
+            .map(path => {
+              return ts.createCaseClause(ts.createStringLiteral(path), [
+                ts.createStatement(
+                  createEndpointImplementation(
+                    engineProcess,
+                    handleIdentifier,
+                    endpointDefs[path],
+                    responseTypeRef,
+                    onlyBody,
+                    onlyDataOrFullResponseTypeRef,
+                    pathsTypeRef,
+                    pathIdentifier
+                  )
+                )
+              ]) as ts.CaseOrDefaultClause;
+            })
+            .concat(
+              ts.createDefaultClause([
+                ts.createExpressionStatement(
+                  ts.createCall(
+                    ts.createPropertyAccess(tsGenIdentifier, "unknownPath"),
+                    undefined,
+                    [
+                      ts.createIdentifier(AllPathsName),
+                      ts.createIdentifier(PathsVariableShortName)
+                    ]
+                  )
+                )
+              ])
+            )
+        )
+      )
+    ]);
+  }
+  // TODO: is this or the QualifiedName the right way of accessing OnlyBody
+  const onlyBodyProperty = ts.createPropertyAccess(
+    ts.createPropertyAccess(tsGenIdentifier, OnlyBodyOrFullResponseName),
+    OnlyBodyName
+  )
+  const switchStmts = ts.createIf(ts.createStrictEquality(ts.createIdentifier(OnlyBodyOrFullResponseParamName), onlyBodyProperty), switchStmt(true), switchStmt(false))
   const pathTypeParam = ts.createTypeParameterDeclaration(
     PathsTypeShortName,
     ts.createTypeReferenceNode(PathsName, undefined)
@@ -410,43 +460,6 @@ export function createPaths(
   );
   const pathsTypeRef = convertTypeDeclarationToRef(pathTypeParam);
   const pathIdentifier = ts.createIdentifier(PathsVariableShortName);
-  const switchStmt = ts.createBlock([
-    ts.createSwitch(
-      pathIdentifier,
-      ts.createCaseBlock(
-        Object.keys(endpointDefs)
-          .map(path => {
-            return ts.createCaseClause(ts.createStringLiteral(path), [
-              ts.createStatement(
-                createEndpointImplementation(
-                  engineProcess,
-                  handleIdentifier,
-                  endpointDefs[path],
-                  responseTypeRef,
-                  onlyDataOrFullResponseTypeRef,
-                  pathsTypeRef,
-                  pathIdentifier
-                )
-              )
-            ]) as ts.CaseOrDefaultClause;
-          })
-          .concat(
-            ts.createDefaultClause([
-              ts.createExpressionStatement(
-                ts.createCall(
-                  ts.createPropertyAccess(tsGenIdentifier, "unknownPath"),
-                  undefined,
-                  [
-                    ts.createIdentifier(PathsTypeShortName),
-                    ts.createIdentifier(AllPathsName)
-                  ]
-                )
-              )
-            ])
-          )
-      )
-    )
-  ]);
   return ts.createArrowFunction(
     undefined,
     [pathTypeParam, obfrTypeParam],
@@ -463,17 +476,13 @@ export function createPaths(
         undefined,
         undefined,
         undefined,
-        "onlyBodyOrFullResponse",
+        OnlyBodyOrFullResponseParamName,
         undefined,
         ts.createTypeReferenceNode(
           onlyBodyOrFullResponseQN(tsGenIdentifier),
           undefined
         ),
-        // TODO: is this or the QualifiedName the right way of accessing OnlyBody
-        ts.createPropertyAccess(
-          ts.createPropertyAccess(tsGenIdentifier, OnlyBodyOrFullResponseName),
-          OnlyBodyName
-        )
+        onlyBodyProperty
       )
     ],
     ts.createTypeReferenceNode(endpointDecl.name, [
@@ -482,7 +491,7 @@ export function createPaths(
       pathsTypeRef
     ]),
     undefined,
-    switchStmt
+    ts.createBlock([switchStmts])
   );
 }
 
@@ -544,6 +553,7 @@ export function createApiFunction(
   );
 
   const pathName = "path";
+  const handleName = "handle";
 
   const pathDeclaration = createConstStatement(
     pathName,
@@ -554,7 +564,7 @@ export function createApiFunction(
         ts.createIdentifier("process")
       ),
       tsGenIdentifier,
-      ts.createIdentifier("handle"),
+      ts.createIdentifier(handleName),
       convertTypeDeclarationToRef(responseTypeDecl),
       convertTypeDeclarationToRef(onlyDataOrFullResponseTypeDecl),
       endpointDefs,
@@ -582,7 +592,24 @@ export function createApiFunction(
             ts.createTypeReferenceNode(onlyBodyQN(tsGenIdentifier), [])
           )
         ],
-        [],
+        [
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            PathsVariableShortName,
+            undefined,
+            ts.createTypeReferenceNode(PathsTypeShortName, [])
+          ),
+          ts.createParameter(
+            undefined,
+            undefined,
+            undefined,
+            OnlyBodyOrFullResponseParamName,
+            ts.createToken(ts.SyntaxKind.QuestionToken),
+            ts.createTypeReferenceNode(OnlyBodyOrFullResponseShortName, [])
+          )
+        ],
         ts.createTypeReferenceNode(endpointDecl.name, [
           ts.createTypeReferenceNode(ResponseTypeParameterName, []),
           ts.createTypeReferenceNode(OnlyBodyOrFullResponseShortName, []),
@@ -604,7 +631,7 @@ export function createApiFunction(
   );
 
   const handleDeclaration = createConstStatement(
-    "handler",
+    handleName,
     ts.createCall(
       ts.createPropertyAccess(ts.createIdentifier("engine"), "handler"),
       [],
@@ -612,9 +639,9 @@ export function createApiFunction(
     )
   );
 
-  return ts.createFunctionDeclaration(
+  const functionDeclaration = ts.createFunctionDeclaration(
     undefined, // decorators
-    undefined, // modifiers
+    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Export),
     undefined, // asteriskToken
     "api",
     [engineHandlerTypeDecl, responseTypeDecl],
@@ -631,4 +658,21 @@ export function createApiFunction(
       )
     ])
   );
+  return functionDeclaration;
+}
+
+export function createAllPathsVariable(endpointDefs: {
+  [path: string]: EndpointDef;
+}): ts.VariableStatement {
+  return ts.createVariableStatement(undefined, [
+    ts.createVariableDeclaration(
+      AllPathsName,
+      undefined,
+      ts.createArrayLiteral(
+        Object.keys(endpointDefs).map(path => {
+          return ts.createStringLiteral(path);
+        })
+      )
+    )
+  ]);
 }

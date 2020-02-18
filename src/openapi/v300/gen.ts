@@ -218,7 +218,7 @@ export async function openapiConverter(
     ].filter(op => op.defined);
     const endpoint: EndpointDef = await operations.reduce(
       async (endpoint, operation) => {
-        const parameters: { [name: string]: ts.TypeNode } = await (
+        const queryParameters: { [name: string]: ts.TypeNode } = await (
           operation.parameters || []
         ).reduce(async (prev, parameterOrRef) => {
           const parameter = await refStore.resolve(parameterOrRef);
@@ -228,8 +228,9 @@ export async function openapiConverter(
         }, Promise.resolve({}));
         
         const endpointMethod: EndpointMethod = {
-          parameters,
-          responseType: 
+          queryParameters,
+          mediaType: 'application/json',
+          returnType: 
         };
         return {
           ...endpoint,

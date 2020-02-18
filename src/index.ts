@@ -61,7 +61,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
   //   '/test2': p
   // }
 
-  const endpoints = openapiConverter(api);
+  const endpoints = await openapiConverter(api);
 
   const tsGenIdentifier = ts.createIdentifier("tsgen");
 

@@ -38,7 +38,7 @@ export function delareTypeLiteralAlias(
   );
 }
 
-export function createStringLitralType(name: string): ts.LiteralTypeNode {
+export function createStringLiteralType(name: string): ts.LiteralTypeNode {
   return ts.createLiteralTypeNode(ts.createStringLiteral(name));
 }
 
@@ -55,7 +55,7 @@ function declareStringLiteralUnion(
     ts.createModifiersFromModifierFlags(ts.ModifierFlags.Export),
     name,
     undefined,
-    ts.createUnionTypeNode(values.map(createStringLitralType))
+    ts.createUnionTypeNode(values.map(createStringLiteralType))
   );
 }
 
@@ -69,16 +69,12 @@ function declareConditionalNeverType(
 }
 
 export type EndpointMethod = {
-  // TODO: rename parameters to queryParameters
-  parameters: { [name: string]: ts.TypeNode };
-  // TODO: add body?: ts.TypeNode
-  // TODO: add requestHeaders?: ts.TypeNode
-  // TODO: rename responseType to mediaType?
-  responseType: string;
-  // TODO: rename returns to returnType
-  returns: ts.TypeNode;
-  // TODO: rename returnHeaders to responseHeaders
-  returnHeaders?: ts.TypeNode;
+  queryParameters: { [name: string]: ts.TypeNode };
+  body?: ts.TypeNode;
+  requestHeaders?: ts.TypeNode;
+  mediaType: string;
+  returnType: ts.TypeNode;
+  responseHeaders?: ts.TypeNode;
 };
 
 export type EndpointDef = {
@@ -97,21 +93,21 @@ function createEndpoint<A>(
 ): A[] {
   return Object.keys(endpointDef).map(method => {
     const methodImpl = endpointDef[method];
-    const params = Object.keys(methodImpl.parameters).map(param =>
+    const params = Object.keys(methodImpl.queryParameters).map(param =>
       ts.createParameter(
         undefined,
         undefined,
         undefined,
         param,
         undefined,
-        methodImpl.parameters[param]
+        methodImpl.queryParameters[param]
       )
     );
     return createChild(
       method,
-      methodImpl.responseType,
+      methodImpl.mediaType,
       params,
-      methodImpl.returns
+      methodImpl.returnType
     );
   });
 }
@@ -132,7 +128,7 @@ export function createOnlyBodyEndpointTypeNode(
     ts.createTypeReferenceNode(PathsTypeShortName, undefined),
     Object.keys(endpoints).map(path => {
       return {
-        left: createStringLitralType(path),
+        left: createStringLiteralType(path),
         right: createOnlyBodyEndpointTypeLiteral(endpoints[path])
       };
     })
@@ -149,7 +145,7 @@ export function createFullResponseEndpointTypeNode(
     ts.createTypeReferenceNode(PathsTypeShortName, undefined),
     Object.keys(endpoints).map(path => {
       return {
-        left: createStringLitralType(path),
+        left: createStringLiteralType(path),
         right: createFullResponseEndpointTypeLiteral(endpoints[path])
       };
     })
@@ -289,7 +285,7 @@ export function createFullResponseEndpointTypeLiteral(
         ts.createFunctionTypeNode(
           undefined,
           params,
-          fullResponseType(type, endpointDef[method].returnHeaders)
+          fullResponseType(type, endpointDef[method].responseHeaders)
         ),
         undefined
       )
@@ -380,7 +376,7 @@ function createEndpointImplementation(
             params,
             onlyBody
               ? onlyBodyType(type)
-              : fullResponseType(type, endpointDef[method].returnHeaders),
+              : fullResponseType(type, endpointDef[method].responseHeaders),
             undefined,
             createEngineCall(
               engineProcess,

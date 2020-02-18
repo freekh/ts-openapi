@@ -14,10 +14,6 @@ export class RefStore {
     this.root = root
     this.resolved = Promise.resolve([])
   }
-  
-  async getResolved(): Promise<Ref[]> {
-
-  }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async resolve<T>(refOr: Ref | T): Promise<T> {

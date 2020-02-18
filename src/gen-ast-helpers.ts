@@ -68,13 +68,22 @@ function declareConditionalNeverType(
   }, ts.createKeywordTypeNode(ts.SyntaxKind.NeverKeyword) as ts.TypeNode);
 }
 
+export type EndpointMethod = {
+  // TODO: rename parameters to queryParameters
+  parameters: { [name: string]: ts.TypeNode };
+  // TODO: add body?: ts.TypeNode
+  // TODO: add requestHeaders?: ts.TypeNode
+  // TODO: rename responseType to mediaType?
+  responseType: string;
+  // TODO: rename returns to returnType
+  returns: ts.TypeNode;
+  // TODO: rename returnHeaders to responseHeaders
+  returnHeaders?: ts.TypeNode;
+};
+
 export type EndpointDef = {
-  [method: string]: {
-    parameters: { [name: string]: ts.TypeNode };
-    responseType: string;
-    returns: ts.TypeNode;
-    returnHeaders?: ts.TypeNode;
-  };
+  // TODO: instead of this: add get: {} etc etc
+  [method: string]: EndpointMethod;
 };
 
 function createEndpoint<A>(

@@ -8,7 +8,11 @@ const assetsConfig = {
 }
 
 app.get('/', (_, res ) => {
-  res.sendFile('example.html', { root: assetsConfig.root })
+  res.sendFile('index.html', { root: assetsConfig.root })
+})
+
+app.get('/style.css', (_, res ) => {
+  res.sendFile('style.css', { root: assetsConfig.root })
 })
 
 app.listen(port, () => {

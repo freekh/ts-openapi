@@ -12,6 +12,7 @@ import {
   createAllPathsVariable
 } from "./gen-ast-helpers";
 import * as prettier from "prettier";
+import { openapiConverter } from "./openapi/v300/gen";
 
 function printStatements(statements: ts.Statement[]): string {
   const sourceFile = ts.createSourceFile(
@@ -39,30 +40,43 @@ function printStatements(statements: ts.Statement[]): string {
 
 // eslint-disable-next-line @typescript-eslint/require-await
 async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
-  const p: EndpointDef = {
-    get: {
-      parameters: {
-        name: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-      },
-      responseType: "application/json",
-      returnHeaders: ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword),
-      returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-    },
-    post: {
-      parameters: {
-        name2: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-      },
-      responseType: "application/json",
-      returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-    }
-  };
-  const endpoints =  {
-    '/test2': p
-  }
-  const pathsTypeStmt = createPathsTypeAlias(endpoints);
+  // const p: EndpointDef = {
+  //   get: {
+  //     parameters: {
+  //       name: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+  //     },
+  //     responseType: "application/json",
+  //     returnHeaders: ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword),
+  //     returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+  //   },
+  //   post: {
+  //     parameters: {
+  //       name2: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+  //     },
+  //     responseType: "application/json",
+  //     returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+  //   }
+  // };
+  // const endpoints =  {
+  //   '/test2': p
+  // }
+
+  const endpoints = openapiConverter(api);
+
   const tsGenIdentifier = ts.createIdentifier("tsgen");
+
+  const pathsTypeStmt = createPathsTypeAlias(endpoints);
   const allPathsStmt = createAllPathsVariable(endpoints);
-  const endpointStmt = createEndpointTypeAlias(tsGenIdentifier, pathsTypeStmt, endpoints);
+  const endpointStmt = createEndpointTypeAlias(
+    tsGenIdentifier,
+    pathsTypeStmt,
+    endpoints
+  );
+  const endpointImpl = createApiFunction(
+    tsGenIdentifier,
+    endpoints,
+    endpointStmt
+  );
   const importStmts = [
     ts.createImportDeclaration(
       undefined,
@@ -74,18 +88,13 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
       ts.createStringLiteral("./engine")
     )
   ];
-  const endpointImpl = createApiFunction(
-    tsGenIdentifier,
-    { test1: p },
-    endpointStmt
-  );
 
   return [
-    ...importStmts,
-    allPathsStmt as ts.Statement,
-    pathsTypeStmt as ts.Statement,
-    endpointStmt as ts.Statement,
-    endpointImpl as ts.Statement
+    ...importStmts
+    // allPathsStmt as ts.Statement,
+    // pathsTypeStmt as ts.Statement,
+    // endpointStmt as ts.Statement,
+    // endpointImpl as ts.Statement
   ];
 }
 
@@ -108,4 +117,4 @@ const p = ts.createProgram({
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)
 
-main(fs.readFileSync("./garbage/petstore.yml", "utf8"));
+main(fs.readFileSync("./garbage/openapi.yml", "utf8"));

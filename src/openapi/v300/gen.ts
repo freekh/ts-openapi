@@ -4,6 +4,7 @@ import { EndpointDef, EndpointMethod } from "../../gen-ast-helpers";
 import { Ref, isRef } from "../ref";
 import { RefStore } from "../../../old_src/openapi/ref";
 import { schemaToTypeNode } from "../../../old_src/gen";
+import { MediaType } from "../../../old_src/openapi/v300";
 
 // function refToName(ref: string): string {
 //   return ref.split("/").slice(-1)[0];
@@ -146,14 +147,14 @@ export async function convertSchema(
 
 type OperationType = Operation & {
   type:
-    | "delete"
-    | "get"
-    | "head"
-    | "options"
-    | "patch"
-    | "post"
-    | "put"
-    | "trace";
+  | "delete"
+  | "get"
+  | "head"
+  | "options"
+  | "patch"
+  | "post"
+  | "put"
+  | "trace";
 };
 const ValidMethods = [
   "delete",
@@ -165,6 +166,22 @@ const ValidMethods = [
   "head",
   "patch"
 ];
+
+function pickMediaTypeSchema(content?: { [key: string]: MediaType }): {
+  mediaType: string;
+  schema: Schema | Ref | null;
+} {
+  // TODO: support other media types 
+  const mediaType = 'application/json'
+  if (content && content[mediaType]) {
+    const schema = content[mediaType].schema
+    if (schema) {
+      return { mediaType, schema }
+    }
+  }
+  console.warn('Could not find application/json in content', content)
+  return { mediaType, schema: null }
+}
 
 export async function openapiConverter(
   api: OpenAPI
@@ -226,11 +243,15 @@ export async function openapiConverter(
 
           return { [parameter.name]: typeNode };
         }, Promise.resolve({}));
-        
+        const requestBody = await refStore.resolve(operation.requestBody)
+        const { mediaType, schema } = pickMediaTypeSchema(requestBody?.content)
+        const returnType = schema ? 
+          await convertSchema(await refStore.resolve(schema), refStore) : 
+          ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
         const endpointMethod: EndpointMethod = {
           queryParameters,
-          mediaType: 'application/json',
-          returnType: 
+          mediaType,
+          returnType
         };
         return {
           ...endpoint,

@@ -27,6 +27,14 @@ export enum OnlyBodyOrFullResponse {
   FullResponse = "full-response"
 }
 
+// TODO: something more performant (use lib?)
+export function pathReplace(path: string, replacements: { [key: string]: string }): string {
+  return Object.keys(replacements).reduce((path, key) => {
+    const re = new RegExp(`{${key}}`, 'g')
+    return path.replace(re, replacements[key])
+  }, path)
+}
+
 // We could do something like this, but it seems more complicated, will it be faster or slower to compile, what to do about headers (this seems solvable but still)...
 // type PromiseOf<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<ReturnType<T>>;
 // type FullResponseOf<Headers extends object, Response, T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<{ headers: Headers; data: ReturnType<T>, engineResponse: Response }>;

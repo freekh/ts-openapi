@@ -240,30 +240,56 @@ export async function openapiConverter(
         ).reduce(async (prev, parameterOrRef) => {
           const parameter = await refStore.resolve(parameterOrRef);
           const typeNode = await convertSchema(await refStore.resolve(parameter.schema), refStore);
-
-          return { [parameter.name]: typeNode };
+          if (parameter.in == 'path') {
+            return prev
+          }
+          return { ...(await prev), [parameter.name]: typeNode };
         }, Promise.resolve({}));
         const requestBody = await refStore.resolve(operation.requestBody)
-        const { mediaType, schema } = pickMediaTypeSchema(requestBody?.content)
-        const returnType = schema ? 
-          await convertSchema(await refStore.resolve(schema), refStore) : 
-          ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
+        console.log(path, operation.responses)
+        const returnTypes = await Promise.all(Object.keys(operation.responses).map(async responseValue => {
+          const response = await refStore.resolve(operation.responses[responseValue])
+          const statusProperty = [ts.createPropertySignature(undefined, "status", undefined, ts.createLiteralTypeNode(ts.createStringLiteral(responseValue)), undefined)]
+          if (!response?.content) {
+            return ts.createTypeLiteralNode(statusProperty)
+          }
+          const { mediaType: _, schema } = pickMediaTypeSchema(response.content)
+          const returnType = schema ?
+            await convertSchema(await refStore.resolve(schema), refStore) : 
+            ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
+          return ts.createTypeLiteralNode([
+            ...statusProperty,
+            ts.createPropertySignature(undefined, "data", undefined, returnType, undefined)
+          ])
+        }))
+        const pathParameters = await (
+          operation.parameters || []
+        ).reduce(async (prev, parameterOrRef) => {
+          const parameter = await refStore.resolve(parameterOrRef);
+          const typeNode = await convertSchema(await refStore.resolve(parameter.schema), refStore);
+          if (parameter.in == 'path') {
+            return { ...(await prev), [parameter.name]: typeNode };
+          }
+          return prev;
+        }, Promise.resolve({}));
         const endpointMethod: EndpointMethod = {
           queryParameters,
-          mediaType,
-          returnType
+          pathParameters,
+          // TODO: what to do about MediaType?
+          mediaType: 'application/json',
+          returnType: ts.createUnionTypeNode(returnTypes)
         };
         return {
-          ...endpoint,
+          ...(await endpoint),
           [operation.type]: endpointMethod
         };
       },
       Promise.resolve({})
     );
     return {
-      ...endpoints,
+      ...(await endpoints),
       [path]: endpoint
     };
   }, Promise.resolve({}));
-  return {};
+  return endpoints;
 }

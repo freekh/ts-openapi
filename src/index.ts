@@ -62,6 +62,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
   // }
 
   const endpoints = await openapiConverter(api);
+  console.log(endpoints)
 
   const tsGenIdentifier = ts.createIdentifier("tsgen");
 
@@ -90,11 +91,11 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
   ];
 
   return [
-    ...importStmts
-    // allPathsStmt as ts.Statement,
-    // pathsTypeStmt as ts.Statement,
-    // endpointStmt as ts.Statement,
-    // endpointImpl as ts.Statement
+    ...importStmts,
+    allPathsStmt as ts.Statement,
+    pathsTypeStmt as ts.Statement,
+    endpointStmt as ts.Statement,
+    endpointImpl as ts.Statement
   ];
 }
 
@@ -117,4 +118,4 @@ const p = ts.createProgram({
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)
 
-main(fs.readFileSync("./garbage/openapi.yml", "utf8"));
+main(fs.readFileSync("./garbage/petstore.yml", "utf8"));

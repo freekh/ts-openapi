@@ -13,6 +13,7 @@ const OnlyBodyOrFullResponseName = "OnlyBodyOrFullResponse";
 const OnlyBodyName = "OnlyBody";
 const AllPathsName = "allPaths";
 const OnlyBodyOrFullResponseParamName = "onlyBodyOrFullResponse";
+const PathReplacementFunctionName = "pathReplace"
 
 export function delareTypeLiteralAlias(
   name: string,
@@ -70,6 +71,7 @@ function declareConditionalNeverType(
 
 export type EndpointMethod = {
   queryParameters: { [name: string]: ts.TypeNode };
+  pathParameters: { [name: string]: ts.TypeNode };
   body?: ts.TypeNode;
   requestHeaders?: ts.TypeNode;
   mediaType: string;
@@ -88,12 +90,14 @@ function createEndpoint<A>(
     method: string,
     responseType: string,
     params: ts.ParameterDeclaration[],
+    queryParams: ts.ParameterDeclaration[],
+    pathReplacements: ts.Identifier[],
     returns: ts.TypeNode
   ) => A
 ): A[] {
   return Object.keys(endpointDef).map(method => {
     const methodImpl = endpointDef[method];
-    const params = Object.keys(methodImpl.queryParameters).map(param =>
+    const queryParams = Object.keys(methodImpl.queryParameters).map(param =>
       ts.createParameter(
         undefined,
         undefined,
@@ -102,11 +106,25 @@ function createEndpoint<A>(
         undefined,
         methodImpl.queryParameters[param]
       )
-    );
+    )
+    const params = Object.keys(methodImpl.pathParameters).map(param =>
+      ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        param,
+        undefined,
+        methodImpl.pathParameters[param]
+      )
+    ).concat(queryParams);
     return createChild(
       method,
       methodImpl.mediaType,
       params,
+      queryParams,
+      Object.keys(methodImpl.pathParameters).map(param =>
+        ts.createIdentifier(param)
+      ),
       methodImpl.returnType
     );
   });
@@ -216,7 +234,7 @@ export function createOnlyBodyEndpointTypeLiteral(
   endpointDef: EndpointDef
 ): ts.TypeLiteralNode {
   return ts.createTypeLiteralNode(
-    createEndpoint(endpointDef, (method, _, params, type) =>
+    createEndpoint(endpointDef, (method, _, params, queryParams, pathReplacements, type) =>
       ts.createPropertySignature(
         undefined,
         method,
@@ -277,7 +295,7 @@ export function createFullResponseEndpointTypeLiteral(
   endpointDef: EndpointDef
 ): ts.TypeLiteralNode {
   return ts.createTypeLiteralNode(
-    createEndpoint(endpointDef, (method, _, params, type) =>
+    createEndpoint(endpointDef, (method, _, params, queryParams, pathReplacements, type) =>
       ts.createPropertySignature(
         undefined,
         method,
@@ -325,17 +343,26 @@ function createEngineCall(
   method: string,
   responseType: string,
   pathIdentifier: ts.Identifier,
-  params: ts.ParameterDeclaration[]
+  pathReplacements: ts.Identifier[],
+  queryParams: ts.ParameterDeclaration[]
 ): ts.Expression {
   // TODO: how to do filter & map with type narrowing?
   const paramAssignments: ts.ShorthandPropertyAssignment[] = [];
-  params.forEach(p => {
+  queryParams.forEach(p => {
     if (ts.isIdentifier(p.name)) {
       paramAssignments.push(ts.createShorthandPropertyAssignment(p.name));
     } else {
-      throw Error("Expected only identifiers here: " + JSON.stringify(params));
+      throw Error("Expected only identifiers here: " + JSON.stringify(queryParams));
     }
   });
+  const pathExpr = pathReplacements.length == 0 ?
+    pathIdentifier as ts.Expression :
+    ts.createCall(ts.createIdentifier(PathReplacementFunctionName), [], [
+      pathIdentifier as ts.Expression,
+      ts.createObjectLiteral(pathReplacements.map(pathReplacement => {
+        return ts.createShorthandPropertyAssignment(pathReplacement)
+      }))
+    ])
   return ts.createCall(engineProcess, undefined, [
     ts.createCall(
       handleIdentifier,
@@ -343,7 +370,7 @@ function createEngineCall(
       [
         ts.createStringLiteral(method) as ts.Expression,
         ts.createStringLiteral(responseType) as ts.Expression,
-        pathIdentifier as ts.Expression
+        pathExpr,
       ].concat(ts.createObjectLiteral(paramAssignments))
     )
   ]);
@@ -367,7 +394,7 @@ function createEndpointImplementation(
 ): ts.Expression {
   return ts.createAsExpression(
     ts.createObjectLiteral(
-      createEndpoint(endpointDef, (method, responseType, params, type) =>
+      createEndpoint(endpointDef, (method, responseType, params, queryParams, pathReplacements, type) =>
         ts.createPropertyAssignment(
           method,
           ts.createArrowFunction(
@@ -384,7 +411,8 @@ function createEndpointImplementation(
               method,
               responseType,
               pathIdentifier,
-              params
+              pathReplacements,
+              queryParams
             )
           )
         )

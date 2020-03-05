@@ -340,6 +340,7 @@ export function declareType(
 function createEngineCall(
   engineProcess: ts.PropertyAccessExpression,
   handleIdentifier: ts.Identifier,
+  tsGenIdentifier: ts.Identifier,
   method: string,
   responseType: string,
   pathIdentifier: ts.Identifier,
@@ -357,7 +358,7 @@ function createEngineCall(
   });
   const pathExpr = pathReplacements.length == 0 ?
     pathIdentifier as ts.Expression :
-    ts.createCall(ts.createIdentifier(PathReplacementFunctionName), [], [
+    ts.createCall(ts.createPropertyAccess(tsGenIdentifier, ts.createIdentifier(PathReplacementFunctionName)), [], [
       pathIdentifier as ts.Expression,
       ts.createObjectLiteral(pathReplacements.map(pathReplacement => {
         return ts.createShorthandPropertyAssignment(pathReplacement)
@@ -385,6 +386,7 @@ function convertTypeDeclarationToRef(
 function createEndpointImplementation(
   engineProcess: ts.PropertyAccessExpression,
   handleIdentifier: ts.Identifier,
+  tsGenIdentifier: ts.Identifier,
   endpointDef: EndpointDef,
   responseTypeRef: ts.TypeReferenceNode,
   onlyBody: boolean,
@@ -408,6 +410,7 @@ function createEndpointImplementation(
             createEngineCall(
               engineProcess,
               handleIdentifier,
+	      tsGenIdentifier,
               method,
               responseType,
               pathIdentifier,
@@ -464,6 +467,7 @@ export function createPaths(
                 createEndpointImplementation(
                   engineProcess,
                   handleIdentifier,
+		  tsGenIdentifier,
                   endpointDefs[path],
                   responseTypeRef,
                   onlyBody,

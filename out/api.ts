@@ -174,7 +174,7 @@ export function api<EngineHandler, Response>(
                     message: string;
                   };
                 }
-            > => engine.process(handle('get', 'application/json', p, { limit, sort })),
+            > => engine.process(handle('get', 'application/json', p, { limit, sort }, {}, {})),
             post: (): Promise<
               | {
                   status: 201;
@@ -186,7 +186,7 @@ export function api<EngineHandler, Response>(
                     message: string;
                   };
                 }
-            > => engine.process(handle('post', 'application/json', p, {})),
+            > => engine.process(handle('post', 'application/json', p, {}, {}, {})),
           } as Endpoint<Response, OBFR, P>;
         case '/pets/{petId}':
           return {
@@ -210,7 +210,7 @@ export function api<EngineHandler, Response>(
                 }
             > =>
               engine.process(
-                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {})
+                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {}, {}, {})
               ),
           } as Endpoint<Response, OBFR, P>;
         default:
@@ -242,7 +242,7 @@ export function api<EngineHandler, Response>(
                     };
                   };
               headers: object;
-            }> => engine.process(handle('get', 'application/json', p, { limit, sort })),
+            }> => engine.process(handle('get', 'application/json', p, { limit, sort }, {}, {})),
             post: (): Promise<{
               response: Response;
               data:
@@ -257,7 +257,7 @@ export function api<EngineHandler, Response>(
                     };
                   };
               headers: object;
-            }> => engine.process(handle('post', 'application/json', p, {})),
+            }> => engine.process(handle('post', 'application/json', p, {}, {}, {})),
           } as Endpoint<Response, OBFR, P>;
         case '/pets/{petId}':
           return {
@@ -284,7 +284,7 @@ export function api<EngineHandler, Response>(
               headers: object;
             }> =>
               engine.process(
-                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {})
+                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {}, {}, {})
               ),
           } as Endpoint<Response, OBFR, P>;
         default:

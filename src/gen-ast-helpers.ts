@@ -73,6 +73,8 @@ function declareConditionalNeverType(
 export type EndpointMethod = {
   queryParameters: { [name: string]: ts.TypeNode };
   pathParameters: { [name: string]: ts.TypeNode };
+  cookieParameters: { [name: string]: ts.TypeNode };
+  headerParameters: { [name: string]: ts.TypeNode };
   body?: ts.TypeNode;
   requestHeaders?: ts.TypeNode;
   mediaType: string;
@@ -92,12 +94,24 @@ function createEndpoint<A>(
     responseType: string,
     params: ts.ParameterDeclaration[],
     queryParams: ts.ParameterDeclaration[],
+    headerParams: ts.ParameterDeclaration[],
+    cookieParams: ts.ParameterDeclaration[],
     pathReplacements: ts.Identifier[],
     returns: ts.TypeNode
   ) => A
 ): A[] {
   return Object.keys(endpointDef).map(method => {
     const methodImpl = endpointDef[method];
+    const pathParams = Object.keys(methodImpl.pathParameters).map(param =>
+      ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        param,
+        undefined,
+        methodImpl.pathParameters[param]
+      )
+    )
     const queryParams = Object.keys(methodImpl.queryParameters).map(param =>
       ts.createParameter(
         undefined,
@@ -108,23 +122,39 @@ function createEndpoint<A>(
         methodImpl.queryParameters[param]
       )
     );
-    const params = Object.keys(methodImpl.pathParameters)
-      .map(param =>
-        ts.createParameter(
-          undefined,
-          undefined,
-          undefined,
-          param,
-          undefined,
-          methodImpl.pathParameters[param]
-        )
+    const headerParams = Object.keys(methodImpl.headerParameters).map(param =>
+      ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        param,
+        undefined,
+        methodImpl.headerParameters[param]
       )
-      .concat(queryParams);
+    )
+    const cookieParams = 
+    Object.keys(methodImpl.cookieParameters).map(param =>
+      ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        param,
+        undefined,
+        methodImpl.cookieParameters[param]
+      )
+    )
+    const params = pathParams.concat(
+      queryParams,
+      cookieParams,
+      headerParams,
+    );
     return createChild(
       method,
       methodImpl.mediaType,
       params,
       queryParams,
+      headerParams,
+      cookieParams,
       Object.keys(methodImpl.pathParameters).map(param =>
         ts.createIdentifier(param)
       ),
@@ -239,7 +269,7 @@ export function createOnlyBodyEndpointTypeLiteral(
   return ts.createTypeLiteralNode(
     createEndpoint(
       endpointDef,
-      (method, _, params, queryParams, pathReplacements, type) =>
+      (method, _, params, queryParams, headerParams, cookieParams, pathReplacements, type) =>
         ts.createPropertySignature(
           undefined,
           method,
@@ -302,7 +332,7 @@ export function createFullResponseEndpointTypeLiteral(
   return ts.createTypeLiteralNode(
     createEndpoint(
       endpointDef,
-      (method, _, params, queryParams, pathReplacements, type) =>
+      (method, _, params, queryParams, headerParams, cookieParams, pathReplacements, type) =>
         ts.createPropertySignature(
           undefined,
           method,
@@ -352,16 +382,40 @@ function createEngineCall(
   responseType: string,
   pathIdentifier: ts.Identifier,
   pathReplacements: ts.Identifier[],
-  queryParams: ts.ParameterDeclaration[]
+  queryParams: ts.ParameterDeclaration[],
+  headerParams: ts.ParameterDeclaration[],
+  cookieParams: ts.ParameterDeclaration[]
 ): ts.Expression {
   // TODO: how to do filter & map with type narrowing?
-  const paramAssignments: ts.ShorthandPropertyAssignment[] = [];
+  const queryParamAssignments: ts.ShorthandPropertyAssignment[] = [];
   queryParams.forEach(p => {
     if (ts.isIdentifier(p.name)) {
-      paramAssignments.push(ts.createShorthandPropertyAssignment(p.name));
+      queryParamAssignments.push(ts.createShorthandPropertyAssignment(p.name));
     } else {
       throw Error(
         "Expected only identifiers here: " + JSON.stringify(queryParams)
+      );
+    }
+  });
+  // TODO: how to do filter & map with type narrowing?
+  const headerParamAssignments: ts.ShorthandPropertyAssignment[] = [];
+  headerParams.forEach(p => {
+    if (ts.isIdentifier(p.name)) {
+      headerParamAssignments.push(ts.createShorthandPropertyAssignment(p.name));
+    } else {
+      throw Error(
+        "Expected only identifiers here: " + JSON.stringify(headerParams)
+      );
+    }
+  });
+  // TODO: how to do filter & map with type narrowing?
+  const cookieParamAssignments: ts.ShorthandPropertyAssignment[] = [];
+  cookieParams.forEach(p => {
+    if (ts.isIdentifier(p.name)) {
+      cookieParamAssignments.push(ts.createShorthandPropertyAssignment(p.name));
+    } else {
+      throw Error(
+        "Expected only identifiers here: " + JSON.stringify(cookieParams)
       );
     }
   });
@@ -384,15 +438,14 @@ function createEngineCall(
           ]
         );
   return ts.createCall(engineProcess, undefined, [
-    ts.createCall(
-      handleIdentifier,
-      undefined,
-      [
-        ts.createStringLiteral(method) as ts.Expression,
-        ts.createStringLiteral(responseType) as ts.Expression,
-        pathExpr
-      ].concat(ts.createObjectLiteral(paramAssignments))
-    )
+    ts.createCall(handleIdentifier, undefined, [
+      ts.createStringLiteral(method) as ts.Expression,
+      ts.createStringLiteral(responseType) as ts.Expression,
+      pathExpr,
+      ts.createObjectLiteral(queryParamAssignments),
+      ts.createObjectLiteral(headerParamAssignments),
+      ts.createObjectLiteral(cookieParamAssignments)
+    ])
   ]);
 }
 
@@ -417,7 +470,7 @@ function createEndpointImplementation(
     ts.createObjectLiteral(
       createEndpoint(
         endpointDef,
-        (method, responseType, params, queryParams, pathReplacements, type) =>
+        (method, responseType, params, queryParams, headerParams, cookieParams, pathReplacements, type) =>
           ts.createPropertyAssignment(
             method,
             ts.createArrowFunction(
@@ -436,7 +489,9 @@ function createEndpointImplementation(
                 responseType,
                 pathIdentifier,
                 pathReplacements,
-                queryParams
+                queryParams,
+                headerParams,
+                cookieParams
               )
             )
           )

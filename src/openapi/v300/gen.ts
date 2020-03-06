@@ -242,19 +242,58 @@ export async function openapiConverter(
     ].filter(op => op.defined);
     const endpoint: EndpointDef = await operations.reduce(
       async (endpoint, operation) => {
-        const queryParameters: { [name: string]: ts.TypeNode } = await (
-          operation.parameters || []
-        ).reduce(async (prev, parameterOrRef) => {
-          const parameter = await refStore.resolve(parameterOrRef);
-          const typeNode = await convertSchema(
-            await refStore.resolve(parameter.schema),
-            refStore
-          );
-          if (parameter.in == "path") {
-            return prev;
-          }
-          return { ...(await prev), [parameter.name]: typeNode };
-        }, Promise.resolve({}));
+        const parameters: {
+          query: { [name: string]: ts.TypeNode };
+          path: { [name: string]: ts.TypeNode };
+          header: { [name: string]: ts.TypeNode };
+          cookie: { [name: string]: ts.TypeNode };
+        } = await (operation.parameters || []).reduce(
+          async (prevP, parameterOrRef) => {
+            const prev = await prevP;
+            const parameter = await refStore.resolve(parameterOrRef);
+            const typeNode = await convertSchema(
+              await refStore.resolve(parameter.schema),
+              refStore
+            );
+            switch (parameter.in) {
+              case 'cookie': return {
+                ...prev,
+                cookie: {
+                  ...prev.cookie,
+                  [parameter.name]: typeNode
+                }
+              };
+              case 'header': return {
+                ...prev,
+                header: {
+                  ...prev.header,
+                  [parameter.name]: typeNode
+                }
+              };
+              case 'path': return {
+                ...prev,
+                path: {
+                  ...prev.path,
+                  [parameter.name]: typeNode
+                }
+              };
+              case 'query': return {
+                ...prev,
+                query: {
+                  ...prev.query,
+                  [parameter.name]: typeNode
+                }
+              };
+            }
+          },
+          Promise.resolve({
+            query: {},
+            path: {},
+            header: {},
+            cookie: {}
+          })
+        );
+
         const requestBody = await refStore.resolve(operation.requestBody);
         const { schema: bodySchemaOrRef } = await pickMediaTypeSchema(
           requestBody?.content
@@ -344,23 +383,11 @@ export async function openapiConverter(
             ]);
           })
         );
-        const pathParameters = await (operation.parameters || []).reduce(
-          async (prev, parameterOrRef) => {
-            const parameter = await refStore.resolve(parameterOrRef);
-            const typeNode = await convertSchema(
-              await refStore.resolve(parameter.schema),
-              refStore
-            );
-            if (parameter.in == "path") {
-              return { ...(await prev), [parameter.name]: typeNode };
-            }
-            return prev;
-          },
-          Promise.resolve({})
-        );
         const endpointMethod: EndpointMethod = {
-          queryParameters,
-          pathParameters,
+          queryParameters: parameters.query,
+          pathParameters: parameters.path,
+          headerParameters: parameters.header,
+          cookieParameters: parameters.cookie,
           body,
           // TODO: what to do about MediaType?
           mediaType: "application/json",

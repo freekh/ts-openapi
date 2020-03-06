@@ -2,7 +2,13 @@
 ** TODO fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
 ** TODO add query param formatting from openapi
 ** TODO add runtime validation using runtype
+* TODO flatten status request to valid ones
+* TODO clean up gen-ast-helpers. write tests
 * TODO add support for more swagger/openapi versions
-* TODO add more 
 * TODO add fetch support
 * TODO add request support
+* TODO npx package
+* TODO landing page
+* TODO npm publish system
+* TODO web app
+* TODO explorative stuff

@@ -1,6 +1,10 @@
 import * as ts from "typescript";
 import { OpenAPI, Operation, Schema } from "./index";
-import { EndpointDef, EndpointMethod } from "../../gen-ast-helpers";
+import {
+  EndpointDef,
+  EndpointMethod,
+  HttpStatusType
+} from "../../gen-ast-helpers";
 import { Ref, isRef } from "../ref";
 import { RefStore } from "../../../old_src/openapi/ref";
 import { schemaToTypeNode } from "../../../old_src/gen";
@@ -147,14 +151,14 @@ export async function convertSchema(
 
 type OperationType = Operation & {
   type:
-  | "delete"
-  | "get"
-  | "head"
-  | "options"
-  | "patch"
-  | "post"
-  | "put"
-  | "trace";
+    | "delete"
+    | "get"
+    | "head"
+    | "options"
+    | "patch"
+    | "post"
+    | "put"
+    | "trace";
 };
 const ValidMethods = [
   "delete",
@@ -167,23 +171,26 @@ const ValidMethods = [
   "patch"
 ];
 
-function pickMediaTypeSchema(content?: { [key: string]: MediaType }): {
+function pickMediaTypeSchema(content?: {
+  [key: string]: MediaType;
+}): {
   mediaType: string;
   schema: Schema | Ref | null;
 } {
-  // TODO: support other media types 
-  const mediaType = 'application/json'
+  // TODO: support other media types
+  const mediaType = "application/json";
   if (content && content[mediaType]) {
-    const schema = content[mediaType].schema
+    const schema = content[mediaType].schema;
     if (schema) {
-      return { mediaType, schema }
+      return { mediaType, schema };
     }
   }
-  console.warn('Could not find application/json in content', content)
-  return { mediaType, schema: null }
+  console.warn("Could not find application/json in content", content);
+  return { mediaType, schema: null };
 }
 
 export async function openapiConverter(
+  tsGenIdentifier: ts.Identifier,
   api: OpenAPI
 ): Promise<{ [path: string]: EndpointDef }> {
   const refStore = new RefStore(api);
@@ -239,44 +246,124 @@ export async function openapiConverter(
           operation.parameters || []
         ).reduce(async (prev, parameterOrRef) => {
           const parameter = await refStore.resolve(parameterOrRef);
-          const typeNode = await convertSchema(await refStore.resolve(parameter.schema), refStore);
-          if (parameter.in == 'path') {
-            return prev
+          const typeNode = await convertSchema(
+            await refStore.resolve(parameter.schema),
+            refStore
+          );
+          if (parameter.in == "path") {
+            return prev;
           }
           return { ...(await prev), [parameter.name]: typeNode };
         }, Promise.resolve({}));
-        const requestBody = await refStore.resolve(operation.requestBody)
-        console.log(path, operation.responses)
-        const returnTypes = await Promise.all(Object.keys(operation.responses).map(async responseValue => {
-          const response = await refStore.resolve(operation.responses[responseValue])
-          const statusProperty = [ts.createPropertySignature(undefined, "status", undefined, ts.createLiteralTypeNode(ts.createStringLiteral(responseValue)), undefined)]
-          if (!response?.content) {
-            return ts.createTypeLiteralNode(statusProperty)
-          }
-          const { mediaType: _, schema } = pickMediaTypeSchema(response.content)
-          const returnType = schema ?
-            await convertSchema(await refStore.resolve(schema), refStore) : 
-            ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
-          return ts.createTypeLiteralNode([
-            ...statusProperty,
-            ts.createPropertySignature(undefined, "data", undefined, returnType, undefined)
-          ])
-        }))
-        const pathParameters = await (
-          operation.parameters || []
-        ).reduce(async (prev, parameterOrRef) => {
-          const parameter = await refStore.resolve(parameterOrRef);
-          const typeNode = await convertSchema(await refStore.resolve(parameter.schema), refStore);
-          if (parameter.in == 'path') {
-            return { ...(await prev), [parameter.name]: typeNode };
-          }
-          return prev;
-        }, Promise.resolve({}));
+        const requestBody = await refStore.resolve(operation.requestBody);
+        const { schema: bodySchemaOrRef } = await pickMediaTypeSchema(
+          requestBody?.content
+        );
+        const bodySchema = await refStore.resolve(bodySchemaOrRef);
+        const body = bodySchema
+          ? await convertSchema(bodySchema, refStore)
+          : undefined;
+        const responseValues = Object.keys(operation.responses);
+
+        const isValidResponseValues = !!responseValues.find(
+          responseValue =>
+            responseValue.match(/\d{3}/) || responseValue === "default"
+        );
+        if (!isValidResponseValues) {
+          throw new Error(`Unexpected response value in ${responseValues}`);
+        }
+
+        const returnTypes = await Promise.all(
+          responseValues.map(async responseValue => {
+            const response = await refStore.resolve(
+              operation.responses[responseValue]
+            );
+            const statusProperty = responseValue.match(/\d{3}/)
+              ? [
+                  ts.createPropertySignature(
+                    undefined,
+                    "status",
+                    undefined,
+                    ts.createLiteralTypeNode(
+                      ts.createNumericLiteral(responseValue)
+                    ),
+                    undefined
+                  )
+                ]
+              : [
+                  ts.createPropertySignature(
+                    undefined,
+                    "status",
+                    undefined,
+                    ts.createTypeReferenceNode("Exclude", [
+                      ts.createTypeReferenceNode(
+                        ts.createQualifiedName(tsGenIdentifier, HttpStatusType),
+                        []
+                      ),
+                      ts.createUnionTypeNode(
+                        responseValues
+                          .filter(r => r != responseValue)
+                          .map(r => {
+                            if (r.match(/\d{3}/)) {
+                              return ts.createLiteralTypeNode(
+                                ts.createNumericLiteral(r)
+                              );
+                            }
+                            throw new Error(
+                              `Expected a numeric value here ${r}`
+                            );
+                          })
+                      )
+                    ]),
+                    //ts.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword),
+                    undefined
+                  )
+                ];
+            if (!response?.content) {
+              return ts.createTypeLiteralNode(statusProperty);
+            }
+            const { mediaType: _, schema } = pickMediaTypeSchema(
+              response.content
+            );
+            const returnType = schema
+              ? await convertSchema(await refStore.resolve(schema), refStore)
+              : ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+            const contentPropertyName =
+              responseValue.match(/\d{3}/) && parseInt(responseValue) >= 300
+                ? "error"
+                : "data";
+            return ts.createTypeLiteralNode([
+              ...statusProperty,
+              ts.createPropertySignature(
+                undefined,
+                contentPropertyName,
+                undefined,
+                returnType,
+                undefined
+              )
+            ]);
+          })
+        );
+        const pathParameters = await (operation.parameters || []).reduce(
+          async (prev, parameterOrRef) => {
+            const parameter = await refStore.resolve(parameterOrRef);
+            const typeNode = await convertSchema(
+              await refStore.resolve(parameter.schema),
+              refStore
+            );
+            if (parameter.in == "path") {
+              return { ...(await prev), [parameter.name]: typeNode };
+            }
+            return prev;
+          },
+          Promise.resolve({})
+        );
         const endpointMethod: EndpointMethod = {
           queryParameters,
           pathParameters,
+          body,
           // TODO: what to do about MediaType?
-          mediaType: 'application/json',
+          mediaType: "application/json",
           returnType: ts.createUnionTypeNode(returnTypes)
         };
         return {

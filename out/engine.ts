@@ -27,13 +27,151 @@ export enum OnlyBodyOrFullResponse {
   FullResponse = "full-response"
 }
 
-// TODO: something more performant (use lib?)
-export function pathReplace(path: string, replacements: { [key: string]: string }): string {
+// TODO: something more performant (use lib?). Move reg exp to somewhere outside hotpath?
+export function pathReplace(
+  path: string,
+  replacements: { [key: string]: string }
+): string {
   return Object.keys(replacements).reduce((path, key) => {
-    const re = new RegExp(`{${key}}`, 'g')
-    return path.replace(re, replacements[key])
-  }, path)
+    const re = new RegExp(`{${key}}`, "g");
+    return path.replace(re, replacements[key]);
+  }, path);
 }
+
+export type HttpStatus =
+  | 100
+  | 101
+  | 102
+  | 103
+  | 200
+  | 201
+  | 202
+  | 203
+  | 204
+  | 205
+  | 206
+  | 207
+  | 208
+  | 226
+  | 300
+  | 301
+  | 302
+  | 303
+  | 304
+  | 305
+  | 306
+  | 307
+  | 308
+  | 400
+  | 401
+  | 402
+  | 403
+  | 404
+  | 405
+  | 406
+  | 407
+  | 408
+  | 409
+  | 410
+  | 411
+  | 412
+  | 413
+  | 414
+  | 415
+  | 416
+  | 417
+  | 421
+  | 422
+  | 423
+  | 424
+  | 425
+  | 426
+  | 427
+  | 428
+  | 429
+  | 430
+  | 431
+  | 451
+  | 500
+  | 501
+  | 502
+  | 503
+  | 504
+  | 505
+  | 506
+  | 507
+  | 508
+  | 509
+  | 510
+  | 511;
+
+export const HttpStatus = [
+  100,
+  101,
+  102,
+  103,
+  200,
+  201,
+  202,
+  203,
+  204,
+  205,
+  206,
+  207,
+  208,
+  226,
+  300,
+  301,
+  302,
+  303,
+  304,
+  305,
+  306,
+  307,
+  308,
+  400,
+  401,
+  402,
+  403,
+  404,
+  405,
+  406,
+  407,
+  408,
+  409,
+  410,
+  411,
+  412,
+  413,
+  414,
+  415,
+  416,
+  417,
+  421,
+  422,
+  423,
+  424,
+  425,
+  426,
+  427,
+  428,
+  429,
+  430,
+  431,
+  451,
+  500,
+  501,
+  502,
+  503,
+  504,
+  505,
+  506,
+  507,
+  508,
+  509,
+  510,
+  511
+];
 
 // We could do something like this, but it seems more complicated, will it be faster or slower to compile, what to do about headers (this seems solvable but still)...
 // type PromiseOf<T extends (...args: any[]) => any> = (...args: Parameters<T>) => Promise<ReturnType<T>>;
@@ -76,6 +214,7 @@ export class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
     throw new Error("Method not implemented.");
   }
   process<R>(response: AxiosResponse): R {
+    // TODO: remember to flatten status unless in HttpStatus values to closest 100 (ref Hamberg)
     throw new Error("Method not implemented.");
   }
 }

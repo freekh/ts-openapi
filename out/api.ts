@@ -13,7 +13,7 @@ export type Endpoint<
           sort: 'asc' | 'desc'
         ) => Promise<
           | {
-              status: '200';
+              status: 200;
               data: {
                 id: number;
                 name: string;
@@ -21,7 +21,7 @@ export type Endpoint<
               }[];
             }
           | {
-              status: 'default';
+              status: Exclude<tsgen.HttpStatus, 200>;
               data: {
                 code: number;
                 message: string;
@@ -30,10 +30,10 @@ export type Endpoint<
         >;
         post: () => Promise<
           | {
-              status: '201';
+              status: 201;
             }
           | {
-              status: 'default';
+              status: Exclude<tsgen.HttpStatus, 201>;
               data: {
                 code: number;
                 message: string;
@@ -47,7 +47,7 @@ export type Endpoint<
           petId: string
         ) => Promise<
           | {
-              status: '200';
+              status: 200;
               data: {
                 id: number;
                 name: string;
@@ -55,7 +55,7 @@ export type Endpoint<
               };
             }
           | {
-              status: 'default';
+              status: Exclude<tsgen.HttpStatus, 200>;
               data: {
                 code: number;
                 message: string;
@@ -74,7 +74,7 @@ export type Endpoint<
           response: Response;
           data:
             | {
-                status: '200';
+                status: 200;
                 data: {
                   id: number;
                   name: string;
@@ -82,7 +82,7 @@ export type Endpoint<
                 }[];
               }
             | {
-                status: 'default';
+                status: Exclude<tsgen.HttpStatus, 200>;
                 data: {
                   code: number;
                   message: string;
@@ -94,10 +94,10 @@ export type Endpoint<
           response: Response;
           data:
             | {
-                status: '201';
+                status: 201;
               }
             | {
-                status: 'default';
+                status: Exclude<tsgen.HttpStatus, 201>;
                 data: {
                   code: number;
                   message: string;
@@ -114,7 +114,7 @@ export type Endpoint<
           response: Response;
           data:
             | {
-                status: '200';
+                status: 200;
                 data: {
                   id: number;
                   name: string;
@@ -122,7 +122,7 @@ export type Endpoint<
                 };
               }
             | {
-                status: 'default';
+                status: Exclude<tsgen.HttpStatus, 200>;
                 data: {
                   code: number;
                   message: string;
@@ -160,7 +160,7 @@ export function api<EngineHandler, Response>(
               sort: 'asc' | 'desc'
             ): Promise<
               | {
-                  status: '200';
+                  status: 200;
                   data: {
                     id: number;
                     name: string;
@@ -168,7 +168,7 @@ export function api<EngineHandler, Response>(
                   }[];
                 }
               | {
-                  status: 'default';
+                  status: Exclude<tsgen.HttpStatus, 200>;
                   data: {
                     code: number;
                     message: string;
@@ -177,10 +177,10 @@ export function api<EngineHandler, Response>(
             > => engine.process(handle('get', 'application/json', p, { limit, sort })),
             post: (): Promise<
               | {
-                  status: '201';
+                  status: 201;
                 }
               | {
-                  status: 'default';
+                  status: Exclude<tsgen.HttpStatus, 201>;
                   data: {
                     code: number;
                     message: string;
@@ -194,7 +194,7 @@ export function api<EngineHandler, Response>(
               petId: string
             ): Promise<
               | {
-                  status: '200';
+                  status: 200;
                   data: {
                     id: number;
                     name: string;
@@ -202,13 +202,16 @@ export function api<EngineHandler, Response>(
                   };
                 }
               | {
-                  status: 'default';
+                  status: Exclude<tsgen.HttpStatus, 200>;
                   data: {
                     code: number;
                     message: string;
                   };
                 }
-            > => engine.process(handle('get', 'application/json', pathReplace(p, { petId }), {})),
+            > =>
+              engine.process(
+                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {})
+              ),
           } as Endpoint<Response, OBFR, P>;
         default:
           return tsgen.unknownPath(allPaths, p);
@@ -224,7 +227,7 @@ export function api<EngineHandler, Response>(
               response: Response;
               data:
                 | {
-                    status: '200';
+                    status: 200;
                     data: {
                       id: number;
                       name: string;
@@ -232,7 +235,7 @@ export function api<EngineHandler, Response>(
                     }[];
                   }
                 | {
-                    status: 'default';
+                    status: Exclude<tsgen.HttpStatus, 200>;
                     data: {
                       code: number;
                       message: string;
@@ -244,10 +247,10 @@ export function api<EngineHandler, Response>(
               response: Response;
               data:
                 | {
-                    status: '201';
+                    status: 201;
                   }
                 | {
-                    status: 'default';
+                    status: Exclude<tsgen.HttpStatus, 201>;
                     data: {
                       code: number;
                       message: string;
@@ -264,7 +267,7 @@ export function api<EngineHandler, Response>(
               response: Response;
               data:
                 | {
-                    status: '200';
+                    status: 200;
                     data: {
                       id: number;
                       name: string;
@@ -272,14 +275,17 @@ export function api<EngineHandler, Response>(
                     };
                   }
                 | {
-                    status: 'default';
+                    status: Exclude<tsgen.HttpStatus, 200>;
                     data: {
                       code: number;
                       message: string;
                     };
                   };
               headers: object;
-            }> => engine.process(handle('get', 'application/json', pathReplace(p, { petId }), {})),
+            }> =>
+              engine.process(
+                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {})
+              ),
           } as Endpoint<Response, OBFR, P>;
         default:
           return tsgen.unknownPath(allPaths, p);

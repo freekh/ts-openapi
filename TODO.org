@@ -1,0 +1,8 @@
+* TODO prepare demo for blank
+** TODO fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
+** TODO add query param formatting from openapi
+** TODO add runtime validation using runtype
+* TODO add support for more swagger/openapi versions
+* TODO add more 
+* TODO add fetch support
+* TODO add request support

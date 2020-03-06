@@ -63,8 +63,7 @@ async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
 
   const tsGenIdentifier = ts.createIdentifier("tsgen");
   const endpoints = await openapiConverter(tsGenIdentifier, api);
-  console.log(endpoints)
-
+  console.log(endpoints);
 
   const pathsTypeStmt = createPathsTypeAlias(endpoints);
   const allPathsStmt = createAllPathsVariable(endpoints);
@@ -108,6 +107,12 @@ async function main(doc: string): Promise<void> {
   console.log(apiSrc);
   fs.writeFileSync("./out/api.ts", apiSrc);
 }
+
+import { Static, Runtype, Union, Literal } from 'runtypes'
+
+const R = Union(Literal('test'))
+
+
 
 const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],

@@ -16,7 +16,7 @@ const OnlyBodyOrFullResponseParamName = "onlyBodyOrFullResponse";
 const PathReplacementFunctionName = "pathReplace";
 export const HttpStatusType = "HttpStatus";
 
-export function delareTypeLiteralAlias(
+export function declareTypeLiteralAlias(
   name: string,
   fields: { [name: string]: ts.TypeNode }
 ): ts.TypeAliasDeclaration {

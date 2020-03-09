@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as ts from "typescript";
 import { OpenAPI } from "./openapi/v300";
 import {
-  delareTypeLiteralAlias,
+  declareTypeLiteralAlias,
   EndpointDef,
   declareType,
   createApiFunction,

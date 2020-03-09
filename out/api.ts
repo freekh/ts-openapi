@@ -210,8 +210,7 @@ export function api<EngineHandler, Response>(
                 }
             > =>
               engine.process(
-                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {}, {}, {}),
-                ts.TypeNode
+                handle('get', 'application/json', tsgen.pathReplace(p, { petId }), {}, {}, {})
               ),
           } as Endpoint<Response, OBFR, P>;
         default:

@@ -1,7 +1,10 @@
 * TODO prepare demo for blank
-** TODO fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
+** INPROGRESS fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
 ** TODO add query param formatting from openapi
-** INPROGRESS add runtime validation using runtype
+** TODO add runtime validation using runtype
+** TODO fix parameter ids (escape)
+** TODO fix for multiple similar named parameters (get(o1: string, o1: string))
+** TODO allOf, manyOf, oneOf, 
 * TODO flatten status request to valid ones
 * TODO clean up gen-ast-helpers. write tests
 * TODO add support for more swagger/openapi versions

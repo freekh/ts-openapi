@@ -1,2 +1,5 @@
-const val = 1;
-`test${val}`
+const a ={
+  ...{
+    t: 1
+  }
+}

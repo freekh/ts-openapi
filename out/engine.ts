@@ -191,10 +191,14 @@ export interface Engine<EngineHandler, EngineResponse> {
   // TODO: encode
   // TODO: validate
   process<R>(response: EngineResponse): R;
+  cookieEncode(cookieValue: any): string;
 }
 
 // TODO: remember to flatten status unless in HttpStatus values to closest 100 (ref Hamberg)
 export class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
+  cookieEncode(cookieValue: any): string {
+    throw new Error("Method not implemented.");
+  }
   init(host: string): AxiosInstance {
     throw new Error("Method not implemented.");
   }

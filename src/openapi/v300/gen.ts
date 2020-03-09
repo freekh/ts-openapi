@@ -243,10 +243,10 @@ export async function openapiConverter(
     const endpoint: EndpointDef = await operations.reduce(
       async (endpoint, operation) => {
         const parameters: {
-          query: { [name: string]: ts.TypeNode };
-          path: { [name: string]: ts.TypeNode };
-          header: { [name: string]: ts.TypeNode };
-          cookie: { [name: string]: ts.TypeNode };
+          query: { [name: string]: { type: ts.TypeNode; required: boolean } };
+          path: { [name: string]: { type: ts.TypeNode; required: boolean } };
+          header: { [name: string]: { type: ts.TypeNode; required: boolean } };
+          cookie: { [name: string]: { type: ts.TypeNode; required: boolean } };
         } = await (operation.parameters || []).reduce(
           async (prevP, parameterOrRef) => {
             const prev = await prevP;
@@ -256,34 +256,38 @@ export async function openapiConverter(
               refStore
             );
             switch (parameter.in) {
-              case 'cookie': return {
-                ...prev,
-                cookie: {
-                  ...prev.cookie,
-                  [parameter.name]: typeNode
-                }
-              };
-              case 'header': return {
-                ...prev,
-                header: {
-                  ...prev.header,
-                  [parameter.name]: typeNode
-                }
-              };
-              case 'path': return {
-                ...prev,
-                path: {
-                  ...prev.path,
-                  [parameter.name]: typeNode
-                }
-              };
-              case 'query': return {
-                ...prev,
-                query: {
-                  ...prev.query,
-                  [parameter.name]: typeNode
-                }
-              };
+              case "cookie":
+                return {
+                  ...prev,
+                  cookie: {
+                    ...prev.cookie,
+                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                  }
+                };
+              case "header":
+                return {
+                  ...prev,
+                  header: {
+                    ...prev.header,
+                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                  }
+                };
+              case "path":
+                return {
+                  ...prev,
+                  path: {
+                    ...prev.path,
+                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                  }
+                };
+              case "query":
+                return {
+                  ...prev,
+                  query: {
+                    ...prev.query,
+                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                  }
+                };
             }
           },
           Promise.resolve({

@@ -118,7 +118,7 @@ const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],
   options: {}
 });
-console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[1] as any).expression.templateSpans[0]);
+console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[1] as any));
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)

@@ -14,6 +14,7 @@ const OnlyBodyName = "OnlyBody";
 const AllPathsName = "allPaths";
 const OnlyBodyOrFullResponseParamName = "onlyBodyOrFullResponse";
 const PathReplacementFunctionName = "pathReplace";
+const CookieEncodeName = "cookieEncode";
 export const HttpStatusType = "HttpStatus";
 
 export function declareTypeLiteralAlias(
@@ -71,10 +72,14 @@ function declareConditionalNeverType(
 }
 
 export type EndpointMethod = {
-  queryParameters: { [name: string]: ts.TypeNode };
-  pathParameters: { [name: string]: ts.TypeNode };
-  cookieParameters: { [name: string]: ts.TypeNode };
-  headerParameters: { [name: string]: ts.TypeNode };
+  queryParameters: { [name: string]: { type: ts.TypeNode; required: boolean } };
+  pathParameters: { [name: string]: { type: ts.TypeNode; required: boolean } };
+  cookieParameters: {
+    [name: string]: { type: ts.TypeNode; required: boolean };
+  };
+  headerParameters: {
+    [name: string]: { type: ts.TypeNode; required: boolean };
+  };
   body?: ts.TypeNode;
   requestHeaders?: ts.TypeNode;
   mediaType: string;
@@ -87,61 +92,104 @@ export type EndpointDef = {
   [method: string]: EndpointMethod;
 };
 
+// TODO: fugly
+function capitalizeAround(c: string, s: string): string {
+  const [head, ...tail] = s.split(c);
+  return [head]
+    .concat(tail.map(p => p.slice(0, 1).toUpperCase() + p.slice(1)))
+    .join("");
+}
+
+function escapeParamIdentifier(id: string): ts.Identifier {
+  // TODO:
+  /*There are reserved characters, that have a reserved meanings, those are delimiters — :/?#[]@ — and subdelimiters — !$&'()*+,;=
+
+  There is also a set of characters called unreserved characters — alphanumerics and -._~ — which are not to be encoded.
+
+That means, that anything that doesn't belong to unreserved characters set is supposed to be %-encoded, when they do not have special meaning (e.g. when passed as a part of GET parameter). */
+  return ts.createIdentifier(capitalizeAround("_", capitalizeAround("-", id)));
+}
+
+// TODO: find a better name
+type UrlParameter = ts.ParameterDeclaration & {
+  urlName: string;
+};
+
 function createEndpoint<A>(
   endpointDef: EndpointDef,
   createChild: (
     method: string,
     responseType: string,
     params: ts.ParameterDeclaration[],
-    queryParams: ts.ParameterDeclaration[],
-    headerParams: ts.ParameterDeclaration[],
-    cookieParams: ts.ParameterDeclaration[],
+    queryParams: UrlParameter[],
+    headerParams: UrlParameter[],
+    cookieParams: UrlParameter[],
     pathReplacements: ts.Identifier[],
     returns: ts.TypeNode
   ) => A
 ): A[] {
   return Object.keys(endpointDef).map(method => {
     const methodImpl = endpointDef[method];
-    const pathParams = Object.keys(methodImpl.pathParameters).map(param =>
-      ts.createParameter(
+    const pathParams: UrlParameter[] = Object.keys(
+      methodImpl.pathParameters
+    ).map(param => ({
+      ...ts.createParameter(
         undefined,
         undefined,
         undefined,
-        param,
-        undefined,
-        methodImpl.pathParameters[param]
-      )
-    );
-    const queryParams = Object.keys(methodImpl.queryParameters).map(param =>
-      ts.createParameter(
-        undefined,
-        undefined,
-        undefined,
-        param,
-        undefined,
-        methodImpl.queryParameters[param]
-      )
-    );
-    const headerParams = Object.keys(methodImpl.headerParameters).map(param =>
-      ts.createParameter(
+        escapeParamIdentifier(param),
+        !methodImpl.pathParameters[param].required
+          ? ts.createToken(ts.SyntaxKind.QuestionToken)
+          : undefined,
+        methodImpl.pathParameters[param].type
+      ),
+      urlName: param
+    }));
+    const queryParams: UrlParameter[] = Object.keys(
+      methodImpl.queryParameters
+    ).map(param => ({
+      ...ts.createParameter(
         undefined,
         undefined,
         undefined,
-        param,
+        escapeParamIdentifier(param),
+        !methodImpl.queryParameters[param].required
+          ? ts.createToken(ts.SyntaxKind.QuestionToken)
+          : undefined,
+        methodImpl.queryParameters[param].type
+      ),
+      urlName: param
+    }));
+    const headerParams: UrlParameter[] = Object.keys(
+      methodImpl.headerParameters
+    ).map(param => ({
+      ...ts.createParameter(
         undefined,
-        methodImpl.headerParameters[param]
-      )
-    );
-    const cookieParams = Object.keys(methodImpl.cookieParameters).map(param =>
-      ts.createParameter(
+        undefined,
+        undefined,
+        escapeParamIdentifier(param),
+        !methodImpl.headerParameters[param].required
+          ? ts.createToken(ts.SyntaxKind.QuestionToken)
+          : undefined,
+        methodImpl.headerParameters[param].type
+      ),
+      urlName: param
+    }));
+    const cookieParams: UrlParameter[] = Object.keys(
+      methodImpl.cookieParameters
+    ).map(param => ({
+      ...ts.createParameter(
         undefined,
         undefined,
         undefined,
-        param,
-        undefined,
-        methodImpl.cookieParameters[param]
-      )
-    );
+        escapeParamIdentifier(param),
+        !methodImpl.cookieParameters[param].required
+          ? ts.createToken(ts.SyntaxKind.QuestionToken)
+          : undefined,
+        methodImpl.cookieParameters[param].type
+      ),
+      urlName: param
+    }));
     const params = pathParams.concat(queryParams, cookieParams, headerParams);
     return createChild(
       method,
@@ -151,7 +199,7 @@ function createEndpoint<A>(
       headerParams,
       cookieParams,
       Object.keys(methodImpl.pathParameters).map(param =>
-        ts.createIdentifier(param)
+        escapeParamIdentifier(param)
       ),
       methodImpl.returnType
     );
@@ -338,12 +386,12 @@ export function createFullResponseEndpointTypeLiteral(
       endpointDef,
       (
         method,
-        _,
+        _responseType,
         params,
-        queryParams,
-        headerParams,
-        cookieParams,
-        pathReplacements,
+        _queryParams,
+        _headerParams,
+        _cookieParams,
+        _pathReplacements,
         type
       ) =>
         ts.createPropertySignature(
@@ -389,15 +437,16 @@ export function declareType(
 
 function createEngineCall(
   engineProcess: ts.PropertyAccessExpression,
+  engineIdentifier: ts.Identifier,
   handleIdentifier: ts.Identifier,
   tsGenIdentifier: ts.Identifier,
   method: string,
   responseType: string,
   pathIdentifier: ts.Identifier,
   pathReplacements: ts.Identifier[],
-  queryParams: ts.ParameterDeclaration[],
-  headerParams: ts.ParameterDeclaration[],
-  cookieParams: ts.ParameterDeclaration[]
+  queryParams: UrlParameter[],
+  headerParams: UrlParameter[],
+  cookieParams: UrlParameter[]
 ): ts.Expression {
   // TODO: how to do filter & map with type narrowing?
   const queryParamAssignments: ts.ShorthandPropertyAssignment[] = [];
@@ -411,34 +460,71 @@ function createEngineCall(
     }
   });
 
-  // TODO: how to do filter & map with type narrowing?
-  const header: (ts.PropertyAssignment | ts.ShorthandPropertyAssignment)[] = [];
-  
-  if (queryParams.length > 0) {
-    header.push(ts.createPropertyAssignment('Cookie', ts.createTemplateExpression(ts.createTemplateHead(""), queryParams.map((param, i) => {
-      if (queryParams.length - 1 == i) {
-        return ts.createTemplateSpan(param.name as ts.Identifier, ts.createTemplateTail(';'))  
-      }
-      return ts.createTemplateSpan(param.name as ts.Identifier, ts.createTemplateMiddle(';'))
-    }))))
+  const header: (ts.PropertyAssignment | ts.ShorthandPropertyAssignment | ts.SpreadAssignment)[] = [];
+  header.push(
+    ts.createPropertyAssignment(
+      ts.createStringLiteral("Content-Type"),
+      ts.createStringLiteral(responseType)
+    )
+  );
+  if (cookieParams.length > 0) {
+    // TODO: FUGLY!!!
+    const templateHead = ts.createTemplateHead(`${cookieParams[0].urlName}=`);
+    const templateMiddleSpans = cookieParams
+      .slice(0, cookieParams.length - 1)
+      .map((param, i) => {
+        return ts.createTemplateSpan(
+          ts.createCall(
+            ts.createPropertyAccess(
+              engineIdentifier,
+              ts.createIdentifier(CookieEncodeName)
+            ),
+            [],
+            [param.name as ts.Identifier]
+          ),
+          ts.createTemplateMiddle(`;${cookieParams[i + 1].urlName}=`)
+        );
+      });
+    const templateTail = ts.createTemplateSpan(
+      ts.createCall(
+        ts.createPropertyAccess(
+          engineIdentifier,
+          ts.createIdentifier(CookieEncodeName)
+        ),
+        [],
+        [cookieParams[cookieParams.length - 1].name as ts.Identifier]
+      ),
+      ts.createTemplateTail(";")
+    );
+    header.push(
+      ts.createPropertyAssignment(
+        "Cookie",
+        ts.createTemplateExpression(
+          templateHead,
+          templateMiddleSpans.concat(templateTail)
+        )
+      )
+    );
   }
-  // cookieParams.map(p => {
-  //   ts.createTemplateExpression(ts.createTemplateHead(""), [
-  //     ts.createTemplateSpan(
-  //       p.getText,
-  //       ts.createTemplateMiddle(";")
-  //     )
-  //   ]);
-  // });
-  headerParams.forEach(p => {
-    if (ts.isIdentifier(p.name)) {
-      header.push(ts.createShorthandPropertyAssignment(p.name));
-    } else {
-      throw Error(
-        "Expected only identifiers here: " + JSON.stringify(headerParams)
-      );
-    }
-  });
+  header.push(
+    ts.createSpreadAssignment(
+      ts.createObjectLiteral(
+        headerParams.map(p => {
+          if (ts.isIdentifier(p.name)) {
+            return ts.createPropertyAssignment(
+              ts.createStringLiteral(p.urlName),
+              p.name
+            );
+          } else {
+            throw Error(
+              "Expected only identifiers here: " + JSON.stringify(headerParams)
+            );
+          }
+        })
+      )
+    )
+  );
+
   const pathExpr =
     pathReplacements.length == 0
       ? (pathIdentifier as ts.Expression)
@@ -475,6 +561,7 @@ function convertTypeDeclarationToRef(
 
 function createEndpointImplementation(
   engineProcess: ts.PropertyAccessExpression,
+  engineIdentifier: ts.Identifier,
   handleIdentifier: ts.Identifier,
   tsGenIdentifier: ts.Identifier,
   endpointDef: EndpointDef,
@@ -510,6 +597,7 @@ function createEndpointImplementation(
               undefined,
               createEngineCall(
                 engineProcess,
+                engineIdentifier,
                 handleIdentifier,
                 tsGenIdentifier,
                 method,
@@ -533,6 +621,7 @@ function createEndpointImplementation(
 }
 export function createPaths(
   engineProcess: ts.PropertyAccessExpression,
+  engineIdentifier: ts.Identifier,
   tsGenIdentifier: ts.Identifier,
   handleIdentifier: ts.Identifier,
   responseTypeRef: ts.TypeReferenceNode,
@@ -569,6 +658,7 @@ export function createPaths(
               ts.createReturn(
                 createEndpointImplementation(
                   engineProcess,
+                  engineIdentifier,
                   handleIdentifier,
                   tsGenIdentifier,
                   endpointDefs[path],
@@ -700,15 +790,14 @@ export function createApiFunction(
 
   const pathName = "path";
   const handleName = "handle";
+  const engineIdentifier = ts.createIdentifier("engine");
 
   const pathDeclaration = createConstStatement(
     pathName,
     createPaths(
       // TODO: read from engine
-      ts.createPropertyAccess(
-        ts.createIdentifier("engine"),
-        ts.createIdentifier("process")
-      ),
+      ts.createPropertyAccess(engineIdentifier, ts.createIdentifier("process")),
+      engineIdentifier,
       tsGenIdentifier,
       ts.createIdentifier(handleName),
       convertTypeDeclarationToRef(responseTypeDecl),

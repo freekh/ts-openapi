@@ -9,8 +9,12 @@ export type Endpoint<
   ? P extends '/pets'
     ? {
         get: (
-          limit: number,
-          sort: 'asc' | 'desc'
+          liMit?: number,
+          sort?: 'asc' | 'desc',
+          o1?: number,
+          oFoo2?: number,
+          oAfdafd3?: number,
+          o4?: number
         ) => Promise<
           | {
               status: 200;
@@ -68,8 +72,12 @@ export type Endpoint<
   ? P extends '/pets'
     ? {
         get: (
-          limit: number,
-          sort: 'asc' | 'desc'
+          liMit?: number,
+          sort?: 'asc' | 'desc',
+          o1?: number,
+          oFoo2?: number,
+          oAfdafd3?: number,
+          o4?: number
         ) => Promise<{
           response: Response;
           data:
@@ -156,8 +164,12 @@ export function api<EngineHandler, Response>(
         case '/pets':
           return {
             get: (
-              limit: number,
-              sort: 'asc' | 'desc'
+              liMit?: number,
+              sort?: 'asc' | 'desc',
+              o1?: number,
+              oFoo2?: number,
+              oAfdafd3?: number,
+              o4?: number
             ): Promise<
               | {
                   status: 200;
@@ -174,7 +186,19 @@ export function api<EngineHandler, Response>(
                     message: string;
                   };
                 }
-            > => engine.process(handle('get', p, { limit, sort }, { Cookie: `${limit};${sort};` })),
+            > =>
+              engine.process(
+                handle(
+                  'get',
+                  p,
+                  { liMit, sort },
+                  {
+                    'Content-Type': 'application/json',
+                    Cookie: `o1=${engine.cookieEncode(o1)};o-foo2=${engine.cookieEncode(oFoo2)};`,
+                    ...{ 'o-afdafd_3': oAfdafd3, o4: o4 },
+                  }
+                )
+              ),
             post: (): Promise<
               | {
                   status: 201;
@@ -186,7 +210,8 @@ export function api<EngineHandler, Response>(
                     message: string;
                   };
                 }
-            > => engine.process(handle('post', p, {}, {})),
+            > =>
+              engine.process(handle('post', p, {}, { 'Content-Type': 'application/json', ...{} })),
           } as Endpoint<Response, OBFR, P>;
         case '/pets/{petId}':
           return {
@@ -208,7 +233,15 @@ export function api<EngineHandler, Response>(
                     message: string;
                   };
                 }
-            > => engine.process(handle('get', tsgen.pathReplace(p, { petId }), {}, {})),
+            > =>
+              engine.process(
+                handle(
+                  'get',
+                  tsgen.pathReplace(p, { petId }),
+                  {},
+                  { 'Content-Type': 'application/json', ...{} }
+                )
+              ),
           } as Endpoint<Response, OBFR, P>;
         default:
           return tsgen.unknownPath(allPaths, p);
@@ -218,8 +251,12 @@ export function api<EngineHandler, Response>(
         case '/pets':
           return {
             get: (
-              limit: number,
-              sort: 'asc' | 'desc'
+              liMit?: number,
+              sort?: 'asc' | 'desc',
+              o1?: number,
+              oFoo2?: number,
+              oAfdafd3?: number,
+              o4?: number
             ): Promise<{
               response: Response;
               data:
@@ -240,7 +277,18 @@ export function api<EngineHandler, Response>(
                   };
               headers: object;
             }> =>
-              engine.process(handle('get', p, { limit, sort }, { Cookie: `${limit};${sort};` })),
+              engine.process(
+                handle(
+                  'get',
+                  p,
+                  { liMit, sort },
+                  {
+                    'Content-Type': 'application/json',
+                    Cookie: `o1=${engine.cookieEncode(o1)};o-foo2=${engine.cookieEncode(oFoo2)};`,
+                    ...{ 'o-afdafd_3': oAfdafd3, o4: o4 },
+                  }
+                )
+              ),
             post: (): Promise<{
               response: Response;
               data:
@@ -255,7 +303,8 @@ export function api<EngineHandler, Response>(
                     };
                   };
               headers: object;
-            }> => engine.process(handle('post', p, {}, {})),
+            }> =>
+              engine.process(handle('post', p, {}, { 'Content-Type': 'application/json', ...{} })),
           } as Endpoint<Response, OBFR, P>;
         case '/pets/{petId}':
           return {
@@ -280,7 +329,15 @@ export function api<EngineHandler, Response>(
                     };
                   };
               headers: object;
-            }> => engine.process(handle('get', tsgen.pathReplace(p, { petId }), {}, {})),
+            }> =>
+              engine.process(
+                handle(
+                  'get',
+                  tsgen.pathReplace(p, { petId }),
+                  {},
+                  { 'Content-Type': 'application/json', ...{} }
+                )
+              ),
           } as Endpoint<Response, OBFR, P>;
         default:
           return tsgen.unknownPath(allPaths, p);

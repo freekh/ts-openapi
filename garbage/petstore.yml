@@ -14,7 +14,7 @@ paths:
       tags:
         - pets
       parameters:
-        - name: limit
+        - name: li-mit
           in: query
           description: How many items to return at one time (max 100)
           required: false
@@ -28,7 +28,31 @@ paths:
             type: string
             enum:
             - asc
-            - desc        
+            - desc          
+        - name: o1
+          in: cookie
+          required: false
+          schema:
+            type: integer
+            format: int32     
+        - name: o-foo2
+          in: cookie
+          required: false
+          schema:
+            type: integer
+            format: int32     
+        - name: o-afdafd_3
+          in: header
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: o4
+          in: header
+          required: false
+          schema:
+            type: integer
+            format: int32
       responses:
         '200':
           description: A paged array of pets

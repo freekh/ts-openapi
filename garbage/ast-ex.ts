@@ -1,2 +1,2 @@
-const c = 1
-function a(b: number = c) {}
+const val = 1;
+`test${val}`

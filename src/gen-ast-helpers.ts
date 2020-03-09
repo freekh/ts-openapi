@@ -111,7 +111,7 @@ function createEndpoint<A>(
         undefined,
         methodImpl.pathParameters[param]
       )
-    )
+    );
     const queryParams = Object.keys(methodImpl.queryParameters).map(param =>
       ts.createParameter(
         undefined,
@@ -131,9 +131,8 @@ function createEndpoint<A>(
         undefined,
         methodImpl.headerParameters[param]
       )
-    )
-    const cookieParams = 
-    Object.keys(methodImpl.cookieParameters).map(param =>
+    );
+    const cookieParams = Object.keys(methodImpl.cookieParameters).map(param =>
       ts.createParameter(
         undefined,
         undefined,
@@ -142,12 +141,8 @@ function createEndpoint<A>(
         undefined,
         methodImpl.cookieParameters[param]
       )
-    )
-    const params = pathParams.concat(
-      queryParams,
-      cookieParams,
-      headerParams,
     );
+    const params = pathParams.concat(queryParams, cookieParams, headerParams);
     return createChild(
       method,
       methodImpl.mediaType,
@@ -269,7 +264,16 @@ export function createOnlyBodyEndpointTypeLiteral(
   return ts.createTypeLiteralNode(
     createEndpoint(
       endpointDef,
-      (method, _, params, queryParams, headerParams, cookieParams, pathReplacements, type) =>
+      (
+        method,
+        _,
+        params,
+        queryParams,
+        headerParams,
+        cookieParams,
+        pathReplacements,
+        type
+      ) =>
         ts.createPropertySignature(
           undefined,
           method,
@@ -332,7 +336,16 @@ export function createFullResponseEndpointTypeLiteral(
   return ts.createTypeLiteralNode(
     createEndpoint(
       endpointDef,
-      (method, _, params, queryParams, headerParams, cookieParams, pathReplacements, type) =>
+      (
+        method,
+        _,
+        params,
+        queryParams,
+        headerParams,
+        cookieParams,
+        pathReplacements,
+        type
+      ) =>
         ts.createPropertySignature(
           undefined,
           method,
@@ -397,25 +410,32 @@ function createEngineCall(
       );
     }
   });
+
   // TODO: how to do filter & map with type narrowing?
-  const headerParamAssignments: ts.ShorthandPropertyAssignment[] = [];
+  const header: (ts.PropertyAssignment | ts.ShorthandPropertyAssignment)[] = [];
+  
+  if (queryParams.length > 0) {
+    header.push(ts.createPropertyAssignment('Cookie', ts.createTemplateExpression(ts.createTemplateHead(""), queryParams.map((param, i) => {
+      if (queryParams.length - 1 == i) {
+        return ts.createTemplateSpan(param.name as ts.Identifier, ts.createTemplateTail(';'))  
+      }
+      return ts.createTemplateSpan(param.name as ts.Identifier, ts.createTemplateMiddle(';'))
+    }))))
+  }
+  // cookieParams.map(p => {
+  //   ts.createTemplateExpression(ts.createTemplateHead(""), [
+  //     ts.createTemplateSpan(
+  //       p.getText,
+  //       ts.createTemplateMiddle(";")
+  //     )
+  //   ]);
+  // });
   headerParams.forEach(p => {
     if (ts.isIdentifier(p.name)) {
-      headerParamAssignments.push(ts.createShorthandPropertyAssignment(p.name));
+      header.push(ts.createShorthandPropertyAssignment(p.name));
     } else {
       throw Error(
         "Expected only identifiers here: " + JSON.stringify(headerParams)
-      );
-    }
-  });
-  // TODO: how to do filter & map with type narrowing?
-  const cookieParamAssignments: ts.ShorthandPropertyAssignment[] = [];
-  cookieParams.forEach(p => {
-    if (ts.isIdentifier(p.name)) {
-      cookieParamAssignments.push(ts.createShorthandPropertyAssignment(p.name));
-    } else {
-      throw Error(
-        "Expected only identifiers here: " + JSON.stringify(cookieParams)
       );
     }
   });
@@ -439,12 +459,10 @@ function createEngineCall(
         );
   return ts.createCall(engineProcess, undefined, [
     ts.createCall(handleIdentifier, undefined, [
-      ts.createStringLiteral(method) as ts.Expression,
-      ts.createStringLiteral(responseType) as ts.Expression,
+      ts.createStringLiteral(method),
       pathExpr,
       ts.createObjectLiteral(queryParamAssignments),
-      ts.createObjectLiteral(headerParamAssignments),
-      ts.createObjectLiteral(cookieParamAssignments)
+      ts.createObjectLiteral(header)
     ])
   ]);
 }
@@ -470,7 +488,16 @@ function createEndpointImplementation(
     ts.createObjectLiteral(
       createEndpoint(
         endpointDef,
-        (method, responseType, params, queryParams, headerParams, cookieParams, pathReplacements, type) =>
+        (
+          method,
+          responseType,
+          params,
+          queryParams,
+          headerParams,
+          cookieParams,
+          pathReplacements,
+          type
+        ) =>
           ts.createPropertyAssignment(
             method,
             ts.createArrowFunction(

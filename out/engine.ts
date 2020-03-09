@@ -182,11 +182,9 @@ export interface Engine<EngineHandler, EngineResponse> {
     engine: EngineHandler
   ): <A>(
     method: string,
-    responseType: string,
     path: string,
     queryParams: object,
-    headerParams: object,
-    cookieParams: object,
+    header: object,
     body?: A,
     queryParamsFormatter?: (queryParams: object) => string
   ) => EngineResponse;
@@ -200,7 +198,7 @@ export class AxiosEngine implements Engine<AxiosInstance, AxiosResponse> {
   init(host: string): AxiosInstance {
     throw new Error("Method not implemented.");
   }
-  handler(engine: AxiosInstance): <A>(method: string, responseType: string, path: string, queryParams: object, headerParams: object, cookieParams: object, body?: A | undefined, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse<any> {
+  handler(engine: AxiosInstance): <A>(method: string, path: string, queryParams: object, header: object, body?: A | undefined, queryParamsFormatter?: ((queryParams: object) => string) | undefined) => AxiosResponse<any> {
     throw new Error("Method not implemented.");
   }
   process<R>(response: AxiosResponse<any>): R {

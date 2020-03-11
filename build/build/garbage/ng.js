@@ -16,7 +16,9 @@ function api(host, engine) {
     var engineHandler = engine.init(host);
     var handle = engine.handler(engineHandler);
     var path = function (p, complete) {
-        if (complete === void 0) { complete = Complete.Off; }
+        if (complete === void 0) {
+            complete = Complete.Off;
+        }
         if (complete == Complete.On) {
             switch (p) {
                 case '/test1':

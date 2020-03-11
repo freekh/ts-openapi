@@ -7,5 +7,13 @@
     "moduleResolution": "node",
     "lib": ["es2019"],
     "outDir": "build",
-  }
+    "skipLibCheck": false
+  },
+  "exclude": [
+    "garbage/**",
+    "web/**",
+    "out/**",
+    "build/**",
+    "old_src/**"
+  ]
 }

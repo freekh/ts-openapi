@@ -1,7 +1,7 @@
 * TODO prepare demo for blank
-** INPROGRESS fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
+** DONE [2020-3-10 Tue] fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
 ** TODO add query param formatting from openapi
-** TODO add runtime validation using runtype
+** [2020-3-11 Wed] add runtime validation using runtype
 ** TODO fix parameter ids (escape)
 ** TODO fix for multiple similar named parameters (get(o1: string, o1: string))
 ** TODO allOf, manyOf, oneOf, 

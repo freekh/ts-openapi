@@ -47,20 +47,13 @@ var RefStore = /** @class */ (function () {
         this.root = root;
         this.resolved = Promise.resolve([]);
     }
-    RefStore.prototype.getResolved = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/];
-            });
-        });
-    };
     // eslint-disable-next-line @typescript-eslint/require-await
     RefStore.prototype.resolve = function (refOr) {
         return __awaiter(this, void 0, void 0, function () {
             var _a, refHash, parts;
             return __generator(this, function (_b) {
                 if (!refOr) {
-                    return [2 /*return*/, refOr];
+                    return [2 /*return*/, Promise.reject(new Error('No ref!'))];
                 }
                 if (isRef(refOr)) {
                     _a = refOr.$ref.split('/'), refHash = _a[0], parts = _a.slice(1);

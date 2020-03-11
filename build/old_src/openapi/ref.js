@@ -47,13 +47,6 @@ var RefStore = /** @class */ (function () {
         this.root = root;
         this.resolved = Promise.resolve([]);
     }
-    RefStore.prototype.getResolved = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                return [2 /*return*/];
-            });
-        });
-    };
     // eslint-disable-next-line @typescript-eslint/require-await
     RefStore.prototype.resolve = function (refOr) {
         return __awaiter(this, void 0, void 0, function () {

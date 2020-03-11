@@ -1,10 +1,11 @@
 "use strict";
 var __assign = (this && this.__assign) || function () {
-    __assign = Object.assign || function(t) {
+    __assign = Object.assign || function (t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
             s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
-                t[p] = s[p];
+            for (var p in s)
+                if (Object.prototype.hasOwnProperty.call(s, p))
+                    t[p] = s[p];
         }
         return t;
     };
@@ -70,18 +71,26 @@ function escapeParamIdentifier(id) {
 function createEndpoint(endpointDef, createChild) {
     return Object.keys(endpointDef).map(function (method) {
         var methodImpl = endpointDef[method];
-        var pathParams = Object.keys(methodImpl.pathParameters).map(function (param) { return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.pathParameters[param].required
-            ? ts.createToken(ts.SyntaxKind.QuestionToken)
-            : undefined, methodImpl.pathParameters[param].type)), { urlName: param })); });
-        var queryParams = Object.keys(methodImpl.queryParameters).map(function (param) { return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.queryParameters[param].required
-            ? ts.createToken(ts.SyntaxKind.QuestionToken)
-            : undefined, methodImpl.queryParameters[param].type)), { urlName: param })); });
-        var headerParams = Object.keys(methodImpl.headerParameters).map(function (param) { return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.headerParameters[param].required
-            ? ts.createToken(ts.SyntaxKind.QuestionToken)
-            : undefined, methodImpl.headerParameters[param].type)), { urlName: param })); });
-        var cookieParams = Object.keys(methodImpl.cookieParameters).map(function (param) { return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.cookieParameters[param].required
-            ? ts.createToken(ts.SyntaxKind.QuestionToken)
-            : undefined, methodImpl.cookieParameters[param].type)), { urlName: param })); });
+        var pathParams = Object.keys(methodImpl.pathParameters).map(function (param) {
+            return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.pathParameters[param].required
+                ? ts.createToken(ts.SyntaxKind.QuestionToken)
+                : undefined, methodImpl.pathParameters[param].type)), { urlName: param }));
+        });
+        var queryParams = Object.keys(methodImpl.queryParameters).map(function (param) {
+            return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.queryParameters[param].required
+                ? ts.createToken(ts.SyntaxKind.QuestionToken)
+                : undefined, methodImpl.queryParameters[param].type)), { urlName: param }));
+        });
+        var headerParams = Object.keys(methodImpl.headerParameters).map(function (param) {
+            return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.headerParameters[param].required
+                ? ts.createToken(ts.SyntaxKind.QuestionToken)
+                : undefined, methodImpl.headerParameters[param].type)), { urlName: param }));
+        });
+        var cookieParams = Object.keys(methodImpl.cookieParameters).map(function (param) {
+            return (__assign(__assign({}, ts.createParameter(undefined, undefined, undefined, escapeParamIdentifier(param), !methodImpl.cookieParameters[param].required
+                ? ts.createToken(ts.SyntaxKind.QuestionToken)
+                : undefined, methodImpl.cookieParameters[param].type)), { urlName: param }));
+        });
         var params = pathParams.concat(queryParams, cookieParams, headerParams);
         return createChild(method, methodImpl.mediaType, params, queryParams, headerParams, cookieParams, Object.keys(methodImpl.pathParameters).map(function (param) {
             return escapeParamIdentifier(param);

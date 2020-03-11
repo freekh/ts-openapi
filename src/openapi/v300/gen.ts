@@ -7,103 +7,20 @@ import {
 } from "../../gen-ast-helpers";
 import { Ref, isRef } from "../ref";
 import { RefStore } from "../../../old_src/openapi/ref";
-import { schemaToTypeNode } from "../../../old_src/gen";
 import { MediaType } from "../../../old_src/openapi/v300";
 
-// function refToName(ref: string): string {
-//   return ref.split("/").slice(-1)[0];
-// }
+function isNotIdentifier(n: string): boolean {
+  const entityName = ts.parseIsolatedEntityName(n, ts.ScriptTarget.ES3);
+  if (entityName) {
+    return !ts.isIdentifier(entityName);
+  } else {
+    return false;
+  }
+}
 
-// export function schemaToTypeNode(
-//   schemaOrRef: Schema | Ref,
-//   refs: readonly Ref[]
-// ): { unresolved: readonly Ref[]; type: ts.TypeNode } {
-//   if (isRef(schemaOrRef)) {
-//     return {
-//       unresolved: refs.find(({ $ref }) => $ref == schemaOrRef.$ref)
-//         ? refs
-//         : refs.concat(schemaOrRef),
-//       type: ts.createTypeReferenceNode(refToName(schemaOrRef.$ref), undefined)
-//     };
-//   } else if (schemaOrRef.type == "object") {
-//     const properties = schemaOrRef.properties || {};
-//     const { unresolved: recUnresolved, members } = Object.keys(
-//       properties
-//     ).reduce(
-//       (prev, name) => {
-//         const property = properties[name];
-//         const { unresolved, type } = schemaToTypeNode(
-//           property,
-//           prev.unresolved
-//         );
-//         return {
-//           unresolved,
-//           members: prev.members.concat(
-//             ts.createPropertySignature([], name, undefined, type, undefined)
-//           )
-//         };
-//       },
-//       {
-//         unresolved: refs,
-//         members: [] as ts.TypeElement[]
-//       }
-//     );
-//     return {
-//       unresolved: recUnresolved,
-//       type: ts.createTypeLiteralNode(members)
-//     };
-//   } else if (schemaOrRef.type == "boolean") {
-//     return {
-//       unresolved: refs,
-//       type: ts.createKeywordTypeNode(ts.SyntaxKind.BooleanKeyword)
-//     };
-//   } else if (schemaOrRef.type == "number") {
-//     return {
-//       unresolved: refs,
-//       type: ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-//     };
-//   } else if (schemaOrRef.type == "integer") {
-//     return {
-//       unresolved: refs,
-//       type: ts.createKeywordTypeNode(ts.SyntaxKind.NumberKeyword)
-//     };
-//   } else if (schemaOrRef.type == "string" && schemaOrRef.enum) {
-//     return {
-//       unresolved: refs,
-//       type: ts.createUnionTypeNode(
-//         schemaOrRef.enum.map(e =>
-//           ts.createLiteralTypeNode(ts.createStringLiteral(e))
-//         )
-//       )
-//     };
-//   } else if (schemaOrRef.type == "string") {
-//     return {
-//       unresolved: refs,
-//       type: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-//     };
-//   } else if (schemaOrRef.type == "array" && schemaOrRef.items) {
-//     const { unresolved: recUnresolved, type } = schemaToTypeNode(
-//       schemaOrRef.items,
-//       refs
-//     );
-//     return {
-//       unresolved: recUnresolved,
-//       type: ts.createArrayTypeNode(type)
-//     };
-//   } else if (schemaOrRef.type == "array") {
-//     return {
-//       unresolved: refs,
-//       type: ts.createArrayTypeNode(
-//         ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
-//       )
-//     };
-//   } else {
-//     return {
-//       unresolved: refs,
-//       type: ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword)
-//     };
-//   }
-// }
+function gracefulProp2ObjectFail(properties: { [key: string]: Ref | Schema }) {
+  return ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
+}
 
 export async function convertSchema(
   schema: Schema,
@@ -111,6 +28,9 @@ export async function convertSchema(
 ): Promise<ts.TypeNode> {
   if (schema.type == "object") {
     const properties = schema.properties || {};
+    if (!!Object.keys(properties).find(isNotIdentifier)) {
+      return gracefulProp2ObjectFail(properties);
+    }
     const members = await Promise.all(
       Object.keys(properties).map(async name => {
         const property = properties[name];
@@ -118,7 +38,13 @@ export async function convertSchema(
           await refStore.resolve(property),
           refStore
         );
-        return ts.createPropertySignature([], name, undefined, type, undefined);
+        return ts.createPropertySignature(
+          [],
+          isNotIdentifier(name) ? ts.createStringLiteral(name) : name,
+          undefined,
+          type,
+          undefined
+        );
       }, [] as ts.TypeElement[])
     );
     return ts.createTypeLiteralNode(members);
@@ -171,22 +97,23 @@ const ValidMethods = [
   "patch"
 ];
 
+const PreferredMediaTypes = ["application/json", "text/xml"];
+
 function pickMediaTypeSchema(content?: {
   [key: string]: MediaType;
 }): {
   mediaType: string;
   schema: Schema | Ref | null;
 } {
-  // TODO: support other media types
-  const mediaType = "application/json";
-  if (content && content[mediaType]) {
+  const supportedMediaTypes = Object.keys(content || {});
+  const mediaType = PreferredMediaTypes.find(preferred => supportedMediaTypes.indexOf(preferred) != -1) || supportedMediaTypes[0];
+  if (content && mediaType && content[mediaType]) {
     const schema = content[mediaType].schema;
     if (schema) {
       return { mediaType, schema };
     }
   }
-  console.warn("Could not find application/json in content", content);
-  return { mediaType, schema: null };
+  return { mediaType: mediaType || '*/*', schema: null };
 }
 
 export async function openapiConverter(
@@ -261,7 +188,10 @@ export async function openapiConverter(
                   ...prev,
                   cookie: {
                     ...prev.cookie,
-                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                    [parameter.name]: {
+                      type: typeNode,
+                      required: !!parameter.required
+                    }
                   }
                 };
               case "header":
@@ -269,7 +199,10 @@ export async function openapiConverter(
                   ...prev,
                   header: {
                     ...prev.header,
-                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                    [parameter.name]: {
+                      type: typeNode,
+                      required: !!parameter.required
+                    }
                   }
                 };
               case "path":
@@ -277,7 +210,10 @@ export async function openapiConverter(
                   ...prev,
                   path: {
                     ...prev.path,
-                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                    [parameter.name]: {
+                      type: typeNode,
+                      required: !!parameter.required
+                    }
                   }
                 };
               case "query":
@@ -285,7 +221,10 @@ export async function openapiConverter(
                   ...prev,
                   query: {
                     ...prev.query,
-                    [parameter.name]: { type: typeNode, required: !!parameter.required }
+                    [parameter.name]: {
+                      type: typeNode,
+                      required: !!parameter.required
+                    }
                   }
                 };
             }
@@ -299,7 +238,7 @@ export async function openapiConverter(
         );
 
         const requestBody = await refStore.resolve(operation.requestBody);
-        const { schema: bodySchemaOrRef } = await pickMediaTypeSchema(
+        const { mediaType, schema: bodySchemaOrRef } = pickMediaTypeSchema(
           requestBody?.content
         );
         const bodySchema = await refStore.resolve(bodySchemaOrRef);
@@ -365,9 +304,7 @@ export async function openapiConverter(
             if (!response?.content) {
               return ts.createTypeLiteralNode(statusProperty);
             }
-            const { mediaType: _, schema } = pickMediaTypeSchema(
-              response.content
-            );
+            const { schema } = pickMediaTypeSchema(response.content);
             const returnType = schema
               ? await convertSchema(await refStore.resolve(schema), refStore)
               : ts.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword);
@@ -393,8 +330,7 @@ export async function openapiConverter(
           headerParameters: parameters.header,
           cookieParameters: parameters.cookie,
           body,
-          // TODO: what to do about MediaType?
-          mediaType: "application/json",
+          mediaType,
           returnType: ts.createUnionTypeNode(returnTypes)
         };
         return {

@@ -14,7 +14,7 @@ const OnlyBodyName = "OnlyBody";
 const AllPathsName = "allPaths";
 const OnlyBodyOrFullResponseParamName = "onlyBodyOrFullResponse";
 const PathReplacementFunctionName = "pathReplace";
-const CookieEncodeName = "cookieEncode";
+const CookieEncodeName = "cookieValueEncode";
 export const HttpStatusType = "HttpStatus";
 
 export function declareTypeLiteralAlias(
@@ -316,10 +316,10 @@ export function createOnlyBodyEndpointTypeLiteral(
         method,
         _,
         params,
-        queryParams,
-        headerParams,
-        cookieParams,
-        pathReplacements,
+        _queryParams,
+        _headerParams,
+        _cookieParams,
+        _pathReplacements,
         type
       ) =>
         ts.createPropertySignature(
@@ -460,7 +460,11 @@ function createEngineCall(
     }
   });
 
-  const header: (ts.PropertyAssignment | ts.ShorthandPropertyAssignment | ts.SpreadAssignment)[] = [];
+  const header: (
+    | ts.PropertyAssignment
+    | ts.ShorthandPropertyAssignment
+    | ts.SpreadAssignment
+  )[] = [];
   header.push(
     ts.createPropertyAssignment(
       ts.createStringLiteral("Content-Type"),

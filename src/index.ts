@@ -28,7 +28,7 @@ function printStatements(statements: ts.Statement[]): string {
     omitTrailingSemicolon: true
   });
   sourceFile.statements = ts.createNodeArray(statements);
-
+  return printer.printFile(sourceFile)
   return prettier.format(printer.printFile(sourceFile), {
     parser: "typescript",
     singleQuote: true,
@@ -40,30 +40,9 @@ function printStatements(statements: ts.Statement[]): string {
 
 // eslint-disable-next-line @typescript-eslint/require-await
 async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
-  // const p: EndpointDef = {
-  //   get: {
-  //     parameters: {
-  //       name: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-  //     },
-  //     responseType: "application/json",
-  //     returnHeaders: ts.createKeywordTypeNode(ts.SyntaxKind.ObjectKeyword),
-  //     returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-  //   },
-  //   post: {
-  //     parameters: {
-  //       name2: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-  //     },
-  //     responseType: "application/json",
-  //     returns: ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
-  //   }
-  // };
-  // const endpoints =  {
-  //   '/test2': p
-  // }
-
   const tsGenIdentifier = ts.createIdentifier("tsgen");
   const endpoints = await openapiConverter(tsGenIdentifier, api);
-  console.log(endpoints);
+  // console.log(JSON.stringify(endpoints, null, 2));
 
   const pathsTypeStmt = createPathsTypeAlias(endpoints);
   const allPathsStmt = createAllPathsVariable(endpoints);
@@ -104,7 +83,7 @@ async function main(doc: string): Promise<void> {
 
   const apiSrc = printStatements(await genStatements(api));
 
-  console.log(apiSrc);
+  // console.log(apiSrc);
   fs.writeFileSync("./out/api.ts", apiSrc);
 }
 
@@ -118,9 +97,9 @@ const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],
   options: {}
 });
-console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[1] as any));
+// console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[1] as any));
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)
 
-main(fs.readFileSync("./garbage/petstore.yml", "utf8"));
+main(fs.readFileSync("./garbage/google/gmail.yml", "utf8"));

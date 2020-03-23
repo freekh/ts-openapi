@@ -113,6 +113,7 @@ That means, that anything that doesn't belong to unreserved characters set is su
 // TODO: find a better name
 type UrlParameter = ts.ParameterDeclaration & {
   urlName: string;
+  required: boolean;
 };
 
 function createEndpoint<A>(
@@ -143,6 +144,7 @@ function createEndpoint<A>(
           : undefined,
         methodImpl.pathParameters[param].type
       ),
+      required: methodImpl.pathParameters[param].required,
       urlName: param
     }));
     const queryParams: UrlParameter[] = Object.keys(
@@ -158,6 +160,7 @@ function createEndpoint<A>(
           : undefined,
         methodImpl.queryParameters[param].type
       ),
+      required: methodImpl.queryParameters[param].required,
       urlName: param
     }));
     const headerParams: UrlParameter[] = Object.keys(
@@ -173,6 +176,7 @@ function createEndpoint<A>(
           : undefined,
         methodImpl.headerParameters[param].type
       ),
+      required: methodImpl.headerParameters[param].required,
       urlName: param
     }));
     const cookieParams: UrlParameter[] = Object.keys(
@@ -188,13 +192,15 @@ function createEndpoint<A>(
           : undefined,
         methodImpl.cookieParameters[param].type
       ),
+      required: methodImpl.cookieParameters[param].required,
       urlName: param
     }));
     const params = pathParams.concat(queryParams, cookieParams, headerParams);
+    const sortedParams = params.filter(param => param.required).concat(params.filter(param => !param.required))
     return createChild(
       method,
       methodImpl.mediaType,
-      params,
+      sortedParams,
       queryParams,
       headerParams,
       cookieParams,

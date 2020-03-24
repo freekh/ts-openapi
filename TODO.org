@@ -1,5 +1,8 @@
+* TODO solve google/gmail.yml issue (cyclic types) CLOCK: [2020-3-22 Sun 15:42]
+* TODO solve github/openapi.yml issue (compile time perf: split into multiple compile units / files) CLOCK: [2020-3-22 Sun 15:42]
+
 * TODO prepare demo for blank
-** DONE [2020-3-10 Tue] fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers 
+** DONE [2020-3-10 Tue] fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers
 ** TODO add query param formatting from openapi
 ** [2020-3-11 Wed] add runtime validation using runtype
 ** TODO fix parameter ids (escape)

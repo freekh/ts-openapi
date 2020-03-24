@@ -118,12 +118,13 @@ function pickMediaTypeSchema(content?: {
 
 export async function openapiConverter(
   tsGenIdentifier: ts.Identifier,
-  api: OpenAPI
+  api: OpenAPI,
+  paths: string[]
 ): Promise<{ [path: string]: EndpointDef }> {
   const refStore = new RefStore(api);
   const endpoints: { [path: string]: EndpointDef } = await Object.keys(
     api.paths
-  ).reduce(async (endpoints, path) => {
+  ).filter(path => paths.indexOf(path) !== -1).reduce(async (endpoints, path) => {
     const pathItem = api.paths[path];
     const operations: (OperationType & { defined: boolean })[] = [
       {

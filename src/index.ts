@@ -28,7 +28,7 @@ function printStatements(statements: ts.Statement[]): string {
     omitTrailingSemicolon: true
   });
   sourceFile.statements = ts.createNodeArray(statements);
-  return printer.printFile(sourceFile)
+  return printer.printFile(sourceFile);
   return prettier.format(printer.printFile(sourceFile), {
     parser: "typescript",
     singleQuote: true,
@@ -39,59 +39,75 @@ function printStatements(statements: ts.Statement[]): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/require-await
-async function genStatements(api: OpenAPI): Promise<ts.Statement[]> {
+async function genStatements(
+  api: OpenAPI
+): Promise<{ id: string; statements: ts.Statement[] }[]> {
   const tsGenIdentifier = ts.createIdentifier("tsgen");
-  const endpoints = await openapiConverter(tsGenIdentifier, api);
-  // console.log(JSON.stringify(endpoints, null, 2));
+  const splittedPaths = splitPaths(Object.keys(api.paths), 10);
+  return Promise.all(
+    Object.keys(splittedPaths).map(async id => {
+      const paths = splittedPaths[id];
 
-  const pathsTypeStmt = createPathsTypeAlias(endpoints);
-  const allPathsStmt = createAllPathsVariable(endpoints);
-  const endpointStmt = createEndpointTypeAlias(
-    tsGenIdentifier,
-    pathsTypeStmt,
-    endpoints
-  );
-  const endpointImpl = createApiFunction(
-    tsGenIdentifier,
-    endpoints,
-    endpointStmt
-  );
-  const importStmts = [
-    ts.createImportDeclaration(
-      undefined,
-      undefined,
-      ts.createImportClause(
-        undefined,
-        ts.createNamespaceImport(tsGenIdentifier)
-      ),
-      ts.createStringLiteral("./engine")
-    )
-  ];
+      const endpoints = await openapiConverter(
+        tsGenIdentifier,
+        api,
+        paths
+      );
 
-  return [
-    ...importStmts,
-    allPathsStmt as ts.Statement,
-    pathsTypeStmt as ts.Statement,
-    endpointStmt as ts.Statement,
-    endpointImpl as ts.Statement
-  ];
+      const pathsTypeStmt = createPathsTypeAlias(endpoints);
+      const allPathsStmt = createAllPathsVariable(endpoints);
+      const endpointStmt = createEndpointTypeAlias(
+        tsGenIdentifier,
+        pathsTypeStmt,
+        endpoints
+      );
+      const endpointImpl = createApiFunction(
+        tsGenIdentifier,
+        endpoints,
+        endpointStmt
+      );
+      const importStmts = [
+        ts.createImportDeclaration(
+          undefined,
+          undefined,
+          ts.createImportClause(
+            undefined,
+            ts.createNamespaceImport(tsGenIdentifier)
+          ),
+          ts.createStringLiteral("./engine")
+        )
+      ];
+      return {
+        id,
+        statements: [
+          ...importStmts,
+          allPathsStmt as ts.Statement,
+          pathsTypeStmt as ts.Statement,
+          endpointStmt as ts.Statement,
+          endpointImpl as ts.Statement
+        ]
+      };
+    })
+  );
 }
 
 async function main(doc: string): Promise<void> {
   const api = yaml.safeLoad(doc) as OpenAPI;
   // const schemas = api.components.schemas
+  const dir = "./out";
+  const statements = await genStatements(api);
+  statements.forEach(({ id, statements }) => {
+    const apiSrc = printStatements(statements);
 
-  const apiSrc = printStatements(await genStatements(api));
-
-  // console.log(apiSrc);
-  fs.writeFileSync("./out/api.ts", apiSrc);
+    // console.log(filename, apiSrc);
+    fs.writeFileSync(`${dir}/api.${id}.ts`, apiSrc);
+  });
 }
 
-import { Static, Runtype, Union, Literal } from 'runtypes'
+import { Static, Runtype, Union, Literal } from "runtypes";
+import { splitPaths } from "./path-splitter";
 
-const R = Union(Literal('test'))
-
-
+const R = Union(Literal("test"));
 
 const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],
@@ -102,4 +118,4 @@ const p = ts.createProgram({
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)
 
-main(fs.readFileSync("./garbage/google/gmail.yml", "utf8"));
+main(fs.readFileSync("./garbage/openapi.yml", "utf8"));

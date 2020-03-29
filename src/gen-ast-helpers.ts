@@ -12,6 +12,7 @@ const ResponseTypeParameterName = "Response";
 const OnlyBodyOrFullResponseName = "OnlyBodyOrFullResponse";
 const OnlyBodyName = "OnlyBody";
 const AllPathsName = "allPaths";
+const IfPathFunName = "isPath";
 const OnlyBodyOrFullResponseParamName = "onlyBodyOrFullResponse";
 const PathReplacementFunctionName = "pathReplace";
 const CookieEncodeName = "cookieValueEncode";
@@ -196,7 +197,9 @@ function createEndpoint<A>(
       urlName: param
     }));
     const params = pathParams.concat(queryParams, cookieParams, headerParams);
-    const sortedParams = params.filter(param => param.required).concat(params.filter(param => !param.required))
+    const sortedParams = params
+      .filter(param => param.required)
+      .concat(params.filter(param => !param.required));
     return createChild(
       method,
       methodImpl.mediaType,
@@ -925,5 +928,47 @@ export function createAllPathsVariable(endpointDefs: {
       ],
       ts.NodeFlags.Const
     )
+  );
+}
+
+export function createIsPathFun(endpointDefs: {
+  [path: string]: EndpointDef;
+}): ts.FunctionDeclaration {
+  // throw new Error("Not implemented");
+  const pathParamName = "p";
+  const pathParam = ts.createParameter(
+    [],
+    [],
+    undefined,
+    pathParamName,
+    undefined,
+    ts.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+    undefined
+  );
+  const body = ts.createBlock([
+    ts.createReturn(
+      ts.createBinary(
+        ts.createCall(
+          ts.createPropertyAccess(ts.createIdentifier("allPaths"), "indexOf"),
+          [],
+          [ts.createIdentifier("p")]
+        ),
+        ts.SyntaxKind.ExclamationEqualsEqualsToken,
+        ts.createNumericLiteral("-1", undefined)
+      )
+    )
+  ]);
+  return ts.createFunctionDeclaration(
+    [],
+    ts.createModifiersFromModifierFlags(ts.ModifierFlags.Export),
+    undefined,
+    IfPathFunName,
+    [],
+    [pathParam],
+    ts.createTypePredicateNode(
+      pathParamName,
+      ts.createTypeReferenceNode("Paths", [])
+    ),
+    body
   );
 }

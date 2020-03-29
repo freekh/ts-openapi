@@ -22,8 +22,15 @@ export type EndpointDef = {
   video: EndpointDef["video/clip"] | EndpointDef["video/program"];
   service: "/service/visitor-frequencies" | "/service/unique-visitors";
 };
-export type A<P> = {
-    "article": P extends "/article/conversions"
+export type A = {
+    "article": 
+}
+export type Endpoint<
+  Response,
+  OBFR extends tsgen.OnlyBodyOrFullResponse,
+  P extends Paths
+> = OBFR extends tsgen.OnlyBodyOrFullResponse.OnlyBody
+  ? P extends "/article/conversions"
     ? {
         get: (
           id: string[]
@@ -87,14 +94,8 @@ export type A<P> = {
               };
             }
         >;
-      } : never
-}
-export type Endpoint<
-  Response,
-  OBFR extends tsgen.OnlyBodyOrFullResponse,
-  P extends Paths
-> = OBFR extends tsgen.OnlyBodyOrFullResponse.OnlyBody
-  ?  A<P>["article"] : P extends "/video/clip/conversions"
+      }
+    : P extends "/video/clip/conversions"
     ? {
         get: (
           id: string,

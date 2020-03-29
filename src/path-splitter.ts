@@ -1,4 +1,7 @@
-export function splitPaths(paths: string[], max: number): { [id: string]: string[] } {
+export function splitPaths(
+  paths: string[],
+  max: number
+): { [id: string]: string[] } {
   return paths.reduce(
     ({ res, last }, path) => {
       if (res[last]?.length >= max) {
@@ -11,21 +14,24 @@ export function splitPaths(paths: string[], max: number): { [id: string]: string
 }
 
 console.log(
-  splitPaths([
-    "/article/conversions",
-    "/article/referrals",
-    "/article/totals",
-    "/article/windows",
-    "/article/content-folder/averages",
-    "/article/content-folder/range/views",
-    "/article/content-folder/referrals",
-    "/article/content-folder/sorted-list",
-    "/article/content-folder/windows",
-    "/radio/podcast/listens",
-    "/video/clip/conversions",
-    "/video/program/total-screen-rating",
-    "/video/program/web-rating",
-    "/service/visitor-frequencies",
-    "/service/unique-visitors"
-  ], 10)
+  splitPaths(
+    [
+      "/article/conversions",
+      "/article/referrals",
+      "/article/totals",
+      "/article/windows",
+      "/article/content-folder/averages",
+      "/article/content-folder/range/views",
+      "/article/content-folder/referrals",
+      "/article/content-folder/sorted-list",
+      "/article/content-folder/windows",
+      "/radio/podcast/listens",
+      "/video/clip/conversions",
+      "/video/program/total-screen-rating",
+      "/video/program/web-rating",
+      "/service/visitor-frequencies",
+      "/service/unique-visitors"
+    ],
+    10
+  )
 );

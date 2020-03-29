@@ -9,7 +9,8 @@ import {
   createApiFunction,
   createEndpointTypeAlias,
   createPathsTypeAlias,
-  createAllPathsVariable
+  createAllPathsVariable,
+  createIsPathFun
 } from "./gen-ast-helpers";
 import * as prettier from "prettier";
 import { openapiConverter } from "./openapi/v300/gen";
@@ -43,7 +44,7 @@ async function genStatements(
   api: OpenAPI
 ): Promise<{ id: string; statements: ts.Statement[] }[]> {
   const tsGenIdentifier = ts.createIdentifier("tsgen");
-  const splittedPaths = splitPaths(Object.keys(api.paths), 10);
+  const splittedPaths = splitPaths(Object.keys(api.paths), 20);
   return Promise.all(
     Object.keys(splittedPaths).map(async id => {
       const paths = splittedPaths[id];
@@ -56,6 +57,7 @@ async function genStatements(
 
       const pathsTypeStmt = createPathsTypeAlias(endpoints);
       const allPathsStmt = createAllPathsVariable(endpoints);
+      const isPathFun = createIsPathFun(endpoints);
       const endpointStmt = createEndpointTypeAlias(
         tsGenIdentifier,
         pathsTypeStmt,
@@ -83,6 +85,7 @@ async function genStatements(
           ...importStmts,
           allPathsStmt as ts.Statement,
           pathsTypeStmt as ts.Statement,
+          isPathFun as ts.Statement,
           endpointStmt as ts.Statement,
           endpointImpl as ts.Statement
         ]
@@ -113,9 +116,9 @@ const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],
   options: {}
 });
-// console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[1] as any));
+// console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[2] as any).body.statements[0].expression.left);
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any))
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).type)
 
-main(fs.readFileSync("./garbage/openapi.yml", "utf8"));
+main(fs.readFileSync("./garbage/github/openapi.yml", "utf8"));

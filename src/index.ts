@@ -41,9 +41,19 @@ function printStatements(statements: ts.Statement[]): string {
 
 type StatementsChunk = { id: string; statements: ts.Statement[] };
 
+function importStmt(id: ts.Identifier, name: string): ts.Statement {
+  return ts.createImportDeclaration(
+    undefined,
+    undefined,
+    ts.createImportClause(undefined, ts.createNamespaceImport(id)),
+    ts.createStringLiteral(name)
+  );
+}
+
+const tsGenIdentifier = ts.createIdentifier("tsgen");
+
 // eslint-disable-next-line @typescript-eslint/require-await
 async function genStatements(api: OpenAPI): Promise<StatementsChunk[]> {
-  const tsGenIdentifier = ts.createIdentifier("tsgen");
   const splittedPaths = splitPaths(Object.keys(api.paths), 20);
   return Promise.all(
     Object.keys(splittedPaths).map(async (id) => {
@@ -64,17 +74,7 @@ async function genStatements(api: OpenAPI): Promise<StatementsChunk[]> {
         endpoints,
         endpointStmt
       );
-      const importStmts = [
-        ts.createImportDeclaration(
-          undefined,
-          undefined,
-          ts.createImportClause(
-            undefined,
-            ts.createNamespaceImport(tsGenIdentifier)
-          ),
-          ts.createStringLiteral("./engine")
-        ),
-      ];
+      const importStmts = [importStmt(tsGenIdentifier, "./engine")];
       return {
         id,
         statements: [
@@ -91,9 +91,15 @@ async function genStatements(api: OpenAPI): Promise<StatementsChunk[]> {
 }
 
 function genMain(statements: StatementsChunk[]): ts.Statement[] {
-  return [
-    todo,
-  ];
+  const importIds = statements.map(({ id, statements }) => ({
+    id: ts.createIdentifier(`api${id}`),
+    filename: `./api.${id}`,
+  }));
+  const importStmts = [importStmt(tsGenIdentifier, "./engine")].concat(
+    importIds.map(({ id, filename }) => importStmt(id, filename))
+  );
+  const exportPaths = ts.create // fix export paths;
+  return [...importStmts, exportPaths];
 }
 
 async function main(doc: string): Promise<void> {

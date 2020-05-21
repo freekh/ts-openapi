@@ -13,25 +13,3 @@ export function splitPaths(
   ).res;
 }
 
-console.log(
-  splitPaths(
-    [
-      "/article/conversions",
-      "/article/referrals",
-      "/article/totals",
-      "/article/windows",
-      "/article/content-folder/averages",
-      "/article/content-folder/range/views",
-      "/article/content-folder/referrals",
-      "/article/content-folder/sorted-list",
-      "/article/content-folder/windows",
-      "/radio/podcast/listens",
-      "/video/clip/conversions",
-      "/video/program/total-screen-rating",
-      "/video/program/web-rating",
-      "/service/visitor-frequencies",
-      "/service/unique-visitors"
-    ],
-    10
-  )
-);

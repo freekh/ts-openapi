@@ -1,6 +1,5 @@
 * TODO solve google/gmail.yml issue (cyclic types) CLOCK: [2020-3-22 Sun 15:42]
-* TODO solve github/openapi.yml issue (compile time perf: split into multiple compile units / files) CLOCK: [2020-3-22 Sun 15:42]
-
+* INPROGRESS solve github/openapi.yml issue (compile time perf: split into multiple compile units / files) CLOCK: [2020-5-21 Thu 14:23]
 * TODO prepare demo for blank
 ** DONE [2020-3-10 Tue] fix headers. cookie + headers should just be the same? responseType (application/json) should also just use headers
 ** TODO add query param formatting from openapi

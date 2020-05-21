@@ -10,7 +10,7 @@ import {
   createEndpointTypeAlias,
   createPathsTypeAlias,
   createAllPathsVariable,
-  createIsPathFun
+  createIsPathFun,
 } from "./gen-ast-helpers";
 import * as prettier from "prettier";
 import { openapiConverter } from "./openapi/v300/gen";
@@ -26,7 +26,7 @@ function printStatements(statements: ts.Statement[]): string {
   const printer = ts.createPrinter({
     newLine: ts.NewLineKind.LineFeed,
     removeComments: false,
-    omitTrailingSemicolon: true
+    omitTrailingSemicolon: true,
   });
   sourceFile.statements = ts.createNodeArray(statements);
   return printer.printFile(sourceFile);
@@ -35,25 +35,21 @@ function printStatements(statements: ts.Statement[]): string {
     singleQuote: true,
     arrowParens: "always",
     printWidth: 100,
-    trailingComma: "es5"
+    trailingComma: "es5",
   });
 }
 
+type StatementsChunk = { id: string; statements: ts.Statement[] };
+
 // eslint-disable-next-line @typescript-eslint/require-await
-async function genStatements(
-  api: OpenAPI
-): Promise<{ id: string; statements: ts.Statement[] }[]> {
+async function genStatements(api: OpenAPI): Promise<StatementsChunk[]> {
   const tsGenIdentifier = ts.createIdentifier("tsgen");
   const splittedPaths = splitPaths(Object.keys(api.paths), 20);
   return Promise.all(
-    Object.keys(splittedPaths).map(async id => {
+    Object.keys(splittedPaths).map(async (id) => {
       const paths = splittedPaths[id];
 
-      const endpoints = await openapiConverter(
-        tsGenIdentifier,
-        api,
-        paths
-      );
+      const endpoints = await openapiConverter(tsGenIdentifier, api, paths);
 
       const pathsTypeStmt = createPathsTypeAlias(endpoints);
       const allPathsStmt = createAllPathsVariable(endpoints);
@@ -77,7 +73,7 @@ async function genStatements(
             ts.createNamespaceImport(tsGenIdentifier)
           ),
           ts.createStringLiteral("./engine")
-        )
+        ),
       ];
       return {
         id,
@@ -87,11 +83,17 @@ async function genStatements(
           pathsTypeStmt as ts.Statement,
           isPathFun as ts.Statement,
           endpointStmt as ts.Statement,
-          endpointImpl as ts.Statement
-        ]
+          endpointImpl as ts.Statement,
+        ],
       };
     })
   );
+}
+
+function genMain(statements: StatementsChunk[]): ts.Statement[] {
+  return [
+    todo,
+  ];
 }
 
 async function main(doc: string): Promise<void> {
@@ -105,6 +107,9 @@ async function main(doc: string): Promise<void> {
     // console.log(filename, apiSrc);
     fs.writeFileSync(`${dir}/api.${id}.ts`, apiSrc);
   });
+  const mainStatements = genMain(statements);
+  const apiSrc = printStatements(mainStatements);
+  fs.writeFileSync(`${dir}/api.ts`, apiSrc);
 }
 
 import { Static, Runtype, Union, Literal } from "runtypes";
@@ -114,7 +119,7 @@ const R = Union(Literal("test"));
 
 const p = ts.createProgram({
   rootNames: ["garbage/ast-ex.ts"],
-  options: {}
+  options: {},
 });
 // console.log((p.getSourceFile("garbage/ast-ex.ts")?.statements[2] as any).body.statements[0].expression.left);
 // console.log((p.getSourceFile('garbage/ast-ex.ts')?.statements[0] as any).declarationList.declarations)
